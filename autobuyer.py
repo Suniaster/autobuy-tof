@@ -18,7 +18,7 @@ OK_TEMPLATE_PATH = "ok_template.png"
 REFRESH_ICON_PATH = "refresh_icon_template.png"
 
 CONFIDENCE_THRESHOLD = 0.8
-REFRESH_INTERVAL = 1.0 
+REFRESH_INTERVAL = 0.3
 
 # Base Resolution (What the templates were created on)
 BASE_WIDTH = 1920
@@ -37,9 +37,19 @@ class State:
 
 current_state = State.REFRESHING
 
+paused = False
+
+def toggle_pause():
+    global paused
+    paused = not paused
+    if paused:
+        print("\n[PAUSED] Press F1 to resume...")
+    else:
+        print("\n[RESUMED] Continuing...")
+
 def stop_script():
     global running
-    print("\nF1 pressed. Stopping script...")
+    print("\nF2 pressed. Stopping script...")
     running = False
 
 def get_base_path():
@@ -167,36 +177,77 @@ def capture_and_scale(sct, hwnd):
     
     if img_bgr is None: return None, 1.0, 1.0, monitor
 
+
+
+    # Calculate scale factor relative to BASE (1080p)
+    # We will NOT resize the image anymore, but we'll use this scale as a starting point
+    # for our multi-scale search.
     curr_h, curr_w = img_bgr.shape[:2]
+    scale_x = curr_w / BASE_WIDTH
+    scale_y = curr_h / BASE_HEIGHT
     
-    if curr_w != BASE_WIDTH or curr_h != BASE_HEIGHT:
-        img_resized = cv2.resize(img_bgr, (BASE_WIDTH, BASE_HEIGHT))
-        scale_x = curr_w / BASE_WIDTH
-        scale_y = curr_h / BASE_HEIGHT
-        return img_resized, scale_x, scale_y, monitor
-    else:
-        return img_bgr, 1.0, 1.0, monitor
+    return img_bgr, scale_x, scale_y, monitor
+
+def match_template_multiscale(img, template, start_scale=1.0):
+    """
+    Searches for the template in the image at multiple scales.
+    Returns: (best_val, best_loc, best_scale, (w, h))
+    """
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    template_gray = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+    
+    # Define scale range: e.g. -20% to +20% of the start_scale
+    # We'll stick to a tighter range if start_scale is accurate, but give it wiggle room
+    # for non-linear aspect ratio scaling or UI scaling.
+    scales = np.linspace(start_scale * 0.8, start_scale * 1.2, 20)
+    
+    best_val = -1
+    best_loc = None
+    best_scale = 1.0
+    best_size = (0, 0)
+    
+    for scale in scales:
+        # Resize template
+        t_w = int(template_gray.shape[1] * scale)
+        t_h = int(template_gray.shape[0] * scale)
+        
+        if t_w <= 0 or t_h <= 0 or t_w > img_gray.shape[1] or t_h > img_gray.shape[0]:
+            continue
+            
+        resized_template = cv2.resize(template_gray, (t_w, t_h))
+        
+        res = cv2.matchTemplate(img_gray, resized_template, cv2.TM_CCOEFF_NORMED)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+        
+        if max_val > best_val:
+            best_val = max_val
+            best_loc = max_loc
+            best_scale = scale
+            best_size = (t_w, t_h)
+            
+    return best_val, best_loc, best_scale, best_size
 
 def find_and_click(img_bgr, template, monitor, scale_x, scale_y, state_name):
-    template_h, template_w = template.shape[:2]
+    # Use existing scale_x as a hint, assuming uniform scaling mostly or at least width-based
+    # If aspect ratios differ, scale_x and scale_y differ. We pick one as base.
+    # UI often scales with Height or Width depending on game. We'll try average.
+    avg_scale = (scale_x + scale_y) / 2.0
     
-    res = cv2.matchTemplate(img_bgr, template, cv2.TM_CCOEFF_NORMED)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+    max_val, max_loc, best_scale, size = match_template_multiscale(img_bgr, template, avg_scale)
     
     if max_val >= CONFIDENCE_THRESHOLD:
-        # Detected in BASE resolution
-        base_x = max_loc[0] + template_w // 2
-        base_y = max_loc[1] + template_h // 2
+        # Detected in NATIVE resolution at best_scale
+        top_left = max_loc
+        w, h = size
         
-        # Scale to REAL resolution
-        real_x = int(base_x * scale_x)
-        real_y = int(base_y * scale_y)
+        center_x = top_left[0] + w // 2
+        center_y = top_left[1] + h // 2
         
         # Add Monitor Offset
-        final_x = monitor["left"] + real_x
-        final_y = monitor["top"] + real_y
+        final_x = monitor["left"] + center_x
+        final_y = monitor["top"] + center_y
         
-        print(f"[{state_name}] Match ({max_val:.2f}). Clicking at ({final_x}, {final_y})")
+        print(f"[{state_name}] Matched! Conf: {max_val:.2f} (Scale: {best_scale:.2f})")
         
         pyautogui.moveTo(final_x, final_y)
         click_direct_input()
@@ -284,10 +335,10 @@ def main():
 
     print("Auto-buyer: Window-Independent Mode.")
     print(f"Targeting window: '{GAME_TITLE_KEYWORD}'")
-    print("Press 'F1' to stop.")
+    print("Press 'F1' to pause/resume. Press 'F2' to stop.")
     
-    keyboard.add_hotkey('f1', stop_script)
-    keyboard.add_hotkey('esc', stop_script)
+    keyboard.add_hotkey('f1', toggle_pause)
+    keyboard.add_hotkey('f2', stop_script)
     
     templates = load_templates()
     if templates is None: return
@@ -312,6 +363,10 @@ def main():
         
         try:
             while running:
+                if paused:
+                    time.sleep(0.1)
+                    continue
+
                 # Check Timeouts
                 if current_state in [State.BUYING, State.CONFIRMING]:
                      if time.time() - state_start_time > 2.0:
