@@ -24,6 +24,11 @@ A robust, resolution-independent automation script for purchasing items in *Towe
     ```bash
     autobuyer.exe
     ```
+
+    **Running from Source:**
+    ```bash
+    python src/autobuyer.py
+    ```
 2.  Select your desired mode (1 for Speed, 2 for Background Use).
 3.  The bot will wait for the "Tower of Fantasy" window to appear.
 4.  Once active, it will begin the generic Shop loop:
@@ -45,7 +50,7 @@ A robust, resolution-independent automation script for purchasing items in *Towe
 
 ## 📝 Templates
 
-The bot relies on `.png` templates in the script directory:
+The bot relies on `.png` templates located in `assets/autobuyer/`:
 -   `button_template.png`: The item or button to look for.
 -   `confirm_template.png`: The "Confirm" button in the buy dialog.
 -   `ok_template.png`: The "OK" button after purchase.

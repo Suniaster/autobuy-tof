@@ -9,13 +9,13 @@ import win32gui
 import win32ui
 import win32con
 import sys
-from input_utils import click_direct_input, is_admin, focus_window
+from helper.input_utils import click_direct_input, is_admin, focus_window
 
 # Configuration
-REFRESH_TEMPLATE_PATH = "button_template.png"
-CONFIRM_TEMPLATE_PATH = "confirm_template.png"
-OK_TEMPLATE_PATH = "ok_template.png"
-REFRESH_ICON_PATH = "refresh_icon_template.png"
+REFRESH_TEMPLATE = "button_template.png"
+CONFIRM_TEMPLATE = "confirm_template.png"
+OK_TEMPLATE = "ok_template.png"
+REFRESH_ICON = "refresh_icon_template.png"
 
 CONFIDENCE_THRESHOLD = 0.8
 REFRESH_INTERVAL = 0.3
@@ -52,18 +52,22 @@ def stop_script():
     print("\nF2 pressed. Stopping script...")
     running = False
 
-def get_base_path():
+def get_asset_path(filename):
     if getattr(sys, 'frozen', False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.realpath(__file__))
+        # Frozen: assets are in the same directory as the executable (dist/assets/autobuyer)
+        base_path = os.path.dirname(sys.executable)
+        return os.path.join(base_path, "assets", "autobuyer", filename)
+    else:
+        # Source: assets are in ../assets/autobuyer relative to this script
+        base_path = os.path.dirname(os.path.realpath(__file__))
+        return os.path.join(base_path, "..", "..", "assets", "autobuyer", filename)
 
 def load_templates():
-    paths = [REFRESH_TEMPLATE_PATH, CONFIRM_TEMPLATE_PATH, OK_TEMPLATE_PATH, REFRESH_ICON_PATH]
+    filenames = [REFRESH_TEMPLATE, CONFIRM_TEMPLATE, OK_TEMPLATE, REFRESH_ICON]
     templates = []
-    base_path = get_base_path()
     
-    for p in paths:
-        full_path = os.path.join(base_path, p)
+    for fname in filenames:
+        full_path = get_asset_path(fname)
         if not os.path.exists(full_path):
             print(f"Error: Template '{full_path}' not found!")
             return None
