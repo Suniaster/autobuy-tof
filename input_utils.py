@@ -1,5 +1,7 @@
 import ctypes
 import time
+import win32gui
+import win32con
 
 # --- DirectInput Structures ---
 PUL = ctypes.POINTER(ctypes.c_ulong)
@@ -46,7 +48,7 @@ def click_direct_input():
     x = Input(ctypes.c_ulong(0), ii_)
     ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
     
-    time.sleep(0.15) # Hold duration for games
+    time.sleep(0.08) # Slightly faster hold
     
     # Mouse Up
     ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, ctypes.pointer(extra))
@@ -54,8 +56,27 @@ def click_direct_input():
     ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
 
 def is_admin():
-    """Checks if the script is running with Administrator privileges."""
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+        
+def focus_window(window_title_part):
+    """
+    Simpler win32 focusing
+    """
+    def callback(hwnd, extra):
+        title = win32gui.GetWindowText(hwnd)
+        if window_title_part in title:
+            # Found it
+            # Force restore if minimized
+            if win32gui.IsIconic(hwnd):
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            
+            # Bring to front
+            try:
+                win32gui.SetForegroundWindow(hwnd)
+            except:
+                pass # Already focused or permission issue
+    
+    win32gui.EnumWindows(callback, None)
