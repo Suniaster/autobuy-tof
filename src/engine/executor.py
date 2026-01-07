@@ -195,12 +195,21 @@ class GraphExecutor:
                 duration = float(action.params.get("duration", 0.05))
                 if duration < 0.01: duration = 0.01 # Safety
                 
-                try: 
-                    keyboard.press(key)
-                    time.sleep(duration)
-                    keyboard.release(key)
-                except Exception as e:
-                    print(f"Error pressing key {key}: {e}")
+                if key.lower() == "left_click":
+                     # Special handling for mouse click
+                     try:
+                        click_direct_input()
+                        time.sleep(duration) 
+                     except Exception as e:
+                        print(f"Error clicking: {e}")
+                else:
+                    # Standard Keyboard Press
+                    try: 
+                        keyboard.press(key)
+                        time.sleep(duration)
+                        keyboard.release(key)
+                    except Exception as e:
+                        print(f"Error pressing key {key}: {e}")
                     
                 time.sleep(0.05)
 
