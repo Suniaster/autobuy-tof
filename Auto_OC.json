@@ -4,7 +4,7 @@
       "id": "ffc7f9f3-f830-4fbc-850c-732b8c33b9af",
       "name": "main",
       "description": "",
-      "template": "captured_062e89c8.bmp",
+      "template": "captured_b6c0efe6.bmp",
       "is_start": true
     },
     {
@@ -32,7 +32,7 @@
       "id": "c2f608eb-3901-4e8d-bbf3-6a6ef3e666ce",
       "name": "Dificult",
       "description": "",
-      "template": null,
+      "template": "captured_c88e8a4e.bmp",
       "is_start": false
     },
     {
@@ -46,7 +46,7 @@
       "id": "48fe7b01-3555-4a85-81a9-77f4012abf51",
       "name": "autobattle",
       "description": "",
-      "template": "captured_8e3481d3.bmp",
+      "template": null,
       "is_start": false
     },
     {
@@ -103,6 +103,20 @@
       "name": "click",
       "description": "",
       "template": null,
+      "is_start": false
+    },
+    {
+      "id": "3a6a123d-abef-4731-82f9-a4a1df5750be",
+      "name": "enter",
+      "description": "",
+      "template": null,
+      "is_start": false
+    },
+    {
+      "id": "050e395b-cc8e-48d3-9d59-3c6163f389f6",
+      "name": "fail",
+      "description": "",
+      "template": "captured_7503307c.bmp",
       "is_start": false
     }
   ],
@@ -175,22 +189,6 @@
       }
     },
     {
-      "id": "c9966214-dd67-46db-a46d-05eaa5d8e566",
-      "source_id": "c2f608eb-3901-4e8d-bbf3-6a6ef3e666ce",
-      "target_id": "cf50b60d-240a-458f-8ef5-733e569af4a1",
-      "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "captured_a893b574.bmp",
-          "threshold": 0.8
-        }
-      },
-      "action": {
-        "type": "click_match",
-        "params": {}
-      }
-    },
-    {
       "id": "d2851ac4-edcc-4215-8e60-de49e601bb2f",
       "source_id": "cf50b60d-240a-458f-8ef5-733e569af4a1",
       "target_id": "48fe7b01-3555-4a85-81a9-77f4012abf51",
@@ -235,7 +233,7 @@
       "trigger": {
         "type": "template_match",
         "params": {
-          "template": "captured_d23366e3.bmp",
+          "template": "captured_c8df8f9e.bmp",
           "threshold": 0.8,
           "invert": false
         }
@@ -319,7 +317,7 @@
         "type": "template_match",
         "params": {
           "template": "captured_053c50a2.bmp",
-          "threshold": 0.95,
+          "threshold": 0.99,
           "invert": false
         }
       },
@@ -360,23 +358,6 @@
       }
     },
     {
-      "id": "3055b49e-481a-45ce-9cc3-df83e3add7c8",
-      "source_id": "fe5e6bce-1c57-4467-b227-bc96e21b4316",
-      "target_id": "b21dde5f-ff96-453f-aadb-b9ca08aecc76",
-      "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "captured_0c084acd.bmp",
-          "threshold": 0.8,
-          "invert": false
-        }
-      },
-      "action": {
-        "type": "click_match",
-        "params": {}
-      }
-    },
-    {
       "id": "d67c4f0a-38ab-4b24-ba71-0fda0885fd7b",
       "source_id": "fe5e6bce-1c57-4467-b227-bc96e21b4316",
       "target_id": "48fe7b01-3555-4a85-81a9-77f4012abf51",
@@ -394,6 +375,74 @@
           "key": "w",
           "duration": 2.0
         }
+      }
+    },
+    {
+      "id": "c79e8b80-2775-4301-915a-07af1a8834e8",
+      "source_id": "c2f608eb-3901-4e8d-bbf3-6a6ef3e666ce",
+      "target_id": "3a6a123d-abef-4731-82f9-a4a1df5750be",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "captured_66f898d3.bmp",
+          "threshold": 0.8,
+          "invert": false
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      }
+    },
+    {
+      "id": "ad9007a9-bbd5-4882-95e6-7847e783d0a3",
+      "source_id": "3a6a123d-abef-4731-82f9-a4a1df5750be",
+      "target_id": "cf50b60d-240a-458f-8ef5-733e569af4a1",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "captured_b5b508d2.bmp",
+          "threshold": 0.8,
+          "invert": false
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      }
+    },
+    {
+      "id": "eaa322db-8c65-4515-9263-2daee1254bd8",
+      "source_id": "cf50b60d-240a-458f-8ef5-733e569af4a1",
+      "target_id": "3a6a123d-abef-4731-82f9-a4a1df5750be",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "captured_6246f933.bmp",
+          "threshold": 0.8,
+          "invert": false
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      }
+    },
+    {
+      "id": "2f509323-a727-47d3-b4a1-e10abd9e2cd2",
+      "source_id": "050e395b-cc8e-48d3-9d59-3c6163f389f6",
+      "target_id": "874d6ed5-bf10-4047-85e2-075f8f09a7e3",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "captured_4595b032.bmp",
+          "threshold": 0.8,
+          "invert": false
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
       }
     }
   ]

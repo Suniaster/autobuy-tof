@@ -528,17 +528,36 @@ class GraphEditor(tk.Tk):
     def open_edge_window(self, source_id=None, target_id=None, edge=None):
         win = tk.Toplevel(self)
         win.title("Edge Properties")
-        win.geometry("400x300")
-        # Trigger Template
-        tk.Label(win, text="Trigger Template:").pack(pady=5)
-        frame_tmpl = tk.Frame(win)
-        frame_tmpl.pack()
+        win.geometry("400x480")
+
+        # Trigger Type
+        tk.Label(win, text="Trigger:").pack(pady=5)
+        trig_type_var = tk.StringVar(value="template_match")
+        if edge: trig_type_var.set(edge.trigger.type)
+        tk.OptionMenu(win, trig_type_var, "template_match", "immediate").pack()
+
+        # Trigger Options Container
+        trig_opts = tk.Frame(win)
+        trig_opts.pack(pady=5, fill=tk.X)
+        
+        # --- Template Match UI ---
+        tmpl_frame = tk.Frame(trig_opts)
+        
+        tk.Label(tmpl_frame, text="Template Image:").pack(pady=2)
+        inner_tmpl = tk.Frame(tmpl_frame)
+        inner_tmpl.pack()
+        
         tmpl_var = tk.StringVar()
         if edge: tmpl_var.set(edge.trigger.params.get("template", ""))
-        tmpl_entry = tk.Entry(frame_tmpl, textvariable=tmpl_var, width=30)
+        tmpl_entry = tk.Entry(inner_tmpl, textvariable=tmpl_var, width=30)
         tmpl_entry.pack(side=tk.LEFT)
         
-        preview_label = tk.Label(win)
+        def paste_image():
+            filename = self.save_clipboard_image()
+            if filename: tmpl_var.set(filename)
+        tk.Button(inner_tmpl, text="Paste (Ctrl+V)", command=paste_image).pack(side=tk.LEFT, padx=5)
+
+        preview_label = tk.Label(tmpl_frame)
         preview_label.pack(pady=5)
         
         def update_preview(*args):
@@ -546,25 +565,29 @@ class GraphEditor(tk.Tk):
             photo = self.load_preview_image(fname)
             if photo:
                 preview_label.config(image=photo, text="")
-                preview_label.image = photo # Keep reference
+                preview_label.image = photo 
             else:
                 preview_label.config(image="", text="(No Image)" if fname else "")
-
         tmpl_var.trace("w", update_preview)
-        update_preview()
-
-        def paste_image():
-            filename = self.save_clipboard_image()
-            if filename: tmpl_var.set(filename)
-        tk.Button(frame_tmpl, text="Paste (Ctrl+V)", command=paste_image).pack(side=tk.LEFT, padx=5)
-        tk.Button(frame_tmpl, text="Paste (Ctrl+V)", command=paste_image).pack(side=tk.LEFT, padx=5)
+        update_preview() # init
         
-        # Invert Trigger Checkbox
-        frame_inv = tk.Frame(win)
-        frame_inv.pack(pady=2)
+        # Invert Checkbox
+        inv_frame = tk.Frame(tmpl_frame)
+        inv_frame.pack(pady=2)
         invert_var = tk.BooleanVar()
         if edge: invert_var.set(edge.trigger.params.get("invert", False))
-        tk.Checkbutton(frame_inv, text="Invert (Trigger if NOT found)", variable=invert_var).pack()
+        tk.Checkbutton(inv_frame, text="Invert (Trigger if NOT found)", variable=invert_var).pack()
+
+        # Dynamic Trigger UI Support
+        def update_trig_ui(*args):
+            tmpl_frame.pack_forget()
+            t = trig_type_var.get()
+            if t == "template_match":
+                tmpl_frame.pack(fill=tk.X)
+        
+        trig_type_var.trace("w", update_trig_ui)
+        update_trig_ui()
+
 
         # Action
         tk.Label(win, text="Action:").pack(pady=5)
@@ -630,21 +653,32 @@ class GraphEditor(tk.Tk):
         conf_var = tk.DoubleVar(value=0.8)
         if edge: conf_var.set(edge.trigger.params.get("threshold", 0.8))
         tk.Entry(win, textvariable=conf_var).pack()
+        
+        # Priority
+        tk.Label(win, text="Priority (Higher = First):").pack(pady=5)
+        prio_var = tk.IntVar(value=0)
+        if edge: prio_var.set(edge.priority)
+        tk.Entry(win, textvariable=prio_var).pack()
 
         def save():
+            trig_type = trig_type_var.get()
             tmpl = tmpl_var.get()
             act_type = action_var.get()
             conf = conf_var.get()
             target_key = key_var.get()
             is_inverted = invert_var.get()
             duration = dur_var.get()
+            priority = prio_var.get()
             
             # Reconstruct modifiers string
             selected_mods = [k for k, v in mod_vars.items() if v.get()]
             mods_str = ", ".join(selected_mods)
             
-            trigger_params = {"template": tmpl, "threshold": conf, "invert": is_inverted}
-            trigger = Trigger("template_match", trigger_params)
+            trigger_params = {}
+            if trig_type == "template_match":
+                trigger_params = {"template": tmpl, "threshold": conf, "invert": is_inverted}
+            
+            trigger = Trigger(trig_type, trigger_params)
             
             action = None
             if act_type != "None":
@@ -657,8 +691,9 @@ class GraphEditor(tk.Tk):
             if edge:
                 edge.trigger = trigger
                 edge.action = action
+                edge.priority = priority
             else:
-                new_edge = Edge(source_id, target_id, trigger, action)
+                new_edge = Edge(source_id, target_id, trigger, action, priority=priority)
                 self.graph.add_edge(new_edge)
             win.destroy()
             self.refresh_canvas()

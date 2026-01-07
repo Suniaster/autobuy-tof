@@ -62,6 +62,9 @@ class GraphExecutor:
                 
                 # Check outgoing edges
                 edges = self.graph.get_outgoing_edges(self.current_vertex.id)
+                # Sort by Priority (Higher First)
+                edges.sort(key=lambda e: e.priority, reverse=True)
+                
                 transition_happened = False
 
                 for edge in edges:
@@ -132,6 +135,9 @@ class GraphExecutor:
                 return not found
             else:
                 return found
+                
+        elif trigger.type == "immediate":
+            return True
                 
         elif trigger.type == "wait":
              # TODO: Implement time-based triggers
