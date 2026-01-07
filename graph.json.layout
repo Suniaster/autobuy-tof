@@ -1,0 +1,5 @@
+{
+  "refreshing": [100, 100],
+  "buying": [300, 100],
+  "confirming": [500, 100]
+}
