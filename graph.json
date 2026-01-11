@@ -1,88 +1,95 @@
 {
-    "vertices": [
-        {
-            "id": "refreshing",
-            "name": "REFRESHING",
-            "description": "Looking for items or refresh button",
-            "is_start": true
-        },
-        {
-            "id": "buying",
-            "name": "BUYING",
-            "description": "Item found, waiting for confirm dialog",
-            "is_start": false
-        },
-        {
-            "id": "confirming",
-            "name": "CONFIRMING",
-            "description": "Purchase confirmed, waiting for OK",
-            "is_start": false
+  "vertices": [
+    {
+      "id": "refreshing",
+      "name": "REFRESHING",
+      "description": "Looking for items or refresh button",
+      "template": "captured_58969dbc.bmp",
+      "is_start": true
+    },
+    {
+      "id": "buying",
+      "name": "BUYING",
+      "description": "Item found, waiting for confirm dialog",
+      "template": null,
+      "is_start": false
+    },
+    {
+      "id": "confirming",
+      "name": "CONFIRMING",
+      "description": "Purchase confirmed, waiting for OK",
+      "template": null,
+      "is_start": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "find_item",
+      "source_id": "refreshing",
+      "target_id": "buying",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "button_template.png",
+          "threshold": 0.8
         }
-    ],
-    "edges": [
-        {
-            "id": "find_item",
-            "source_id": "refreshing",
-            "target_id": "buying",
-            "trigger": {
-                "type": "template_match",
-                "params": {
-                    "template": "button_template.png",
-                    "threshold": 0.8
-                }
-            },
-            "action": {
-                "type": "click_match",
-                "params": {}
-            }
-        },
-        {
-            "id": "auto_refresh",
-            "source_id": "refreshing",
-            "target_id": "refreshing",
-            "trigger": {
-                "type": "template_match",
-                "params": {
-                    "template": "refresh_icon_template.png",
-                    "threshold": 0.8
-                }
-            },
-            "action": {
-                "type": "click_match",
-                "params": {}
-            }
-        },
-        {
-            "id": "confirm_buy",
-            "source_id": "buying",
-            "target_id": "confirming",
-            "trigger": {
-                "type": "template_match",
-                "params": {
-                    "template": "confirm_template.png",
-                    "threshold": 0.8
-                }
-            },
-            "action": {
-                "type": "click_match",
-                "params": {}
-            }
-        },
-        {
-            "id": "finish_transaction",
-            "source_id": "confirming",
-            "target_id": "refreshing",
-            "trigger": {
-                "type": "template_match",
-                "params": {
-                    "template": "ok_template.png",
-                    "threshold": 0.8
-                }
-            },
-            "action": {
-                "type": "click_match",
-                "params": {}
-            }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      },
+      "priority": 0
+    },
+    {
+      "id": "auto_refresh",
+      "source_id": "refreshing",
+      "target_id": "refreshing",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "refresh_icon_template.png",
+          "threshold": 0.8
         }
-    ]
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      },
+      "priority": 0
+    },
+    {
+      "id": "confirm_buy",
+      "source_id": "buying",
+      "target_id": "confirming",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "confirm_template.png",
+          "threshold": 0.8
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      },
+      "priority": 0
+    },
+    {
+      "id": "finish_transaction",
+      "source_id": "confirming",
+      "target_id": "refreshing",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "ok_template.png",
+          "threshold": 0.8
+        }
+      },
+      "action": {
+        "type": "click_match",
+        "params": {}
+      },
+      "priority": 0
+    }
+  ]
 }

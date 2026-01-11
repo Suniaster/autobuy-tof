@@ -35,8 +35,17 @@ class Input(ctypes.Structure):
                 ("ii", Input_I)]
 
 # Constants
+MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
+
+def move_mouse_relative(dx, dy):
+    """Moves mouse relative to current position using DirectInput."""
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
+    ii_.mi = MouseInput(int(dx), int(dy), 0, MOUSEEVENTF_MOVE, 0, ctypes.pointer(extra))
+    x = Input(ctypes.c_ulong(0), ii_)
+    ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
 
 def click_direct_input():
     """Performs a low-level DirectInput mouse click (Down + Sleep + Up)."""

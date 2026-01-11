@@ -595,7 +595,7 @@ class GraphEditor(tk.Tk):
         if edge and edge.action: action_var.set(edge.action.type)
         elif edge is None: action_var.set("click_match") 
         
-        opt = tk.OptionMenu(win, action_var, "None", "click_match", "press_key", "wait")
+        opt = tk.OptionMenu(win, action_var, "None", "click_match", "press_key", "wait", "center_camera")
         opt.pack()
 
         # Container for Dynamic Options

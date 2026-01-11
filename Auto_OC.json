@@ -118,6 +118,20 @@
       "description": "",
       "template": "captured_7503307c.bmp",
       "is_start": false
+    },
+    {
+      "id": "a8d9438f-28c0-4235-9a0b-a385d0d3332d",
+      "name": "aa",
+      "description": "",
+      "template": null,
+      "is_start": false
+    },
+    {
+      "id": "919abacb-5dab-451e-a5b3-d20abb2dbaf4",
+      "name": "skill",
+      "description": "",
+      "template": null,
+      "is_start": false
     }
   ],
   "edges": [
@@ -137,7 +151,8 @@
         "params": {
           "modifiers": "alt"
         }
-      }
+      },
+      "priority": 0
     },
     {
       "id": "f1a9dc95-e2f1-4fd3-a9b8-fb8db783e042",
@@ -153,7 +168,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "e3a1499c-27a0-457f-bccf-6a12f1dc315a",
@@ -169,7 +185,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "f922319b-8d35-46f2-838e-7b1e42fa5718",
@@ -178,7 +195,7 @@
       "trigger": {
         "type": "template_match",
         "params": {
-          "template": "captured_e6e7e0ac.bmp",
+          "template": "captured_d28a1d43.bmp",
           "threshold": 0.8,
           "invert": false
         }
@@ -186,7 +203,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "d2851ac4-edcc-4215-8e60-de49e601bb2f",
@@ -204,27 +222,8 @@
         "params": {
           "modifiers": "alt"
         }
-      }
-    },
-    {
-      "id": "8622c0d0-16d1-40f5-be81-8ead99600bdf",
-      "source_id": "48fe7b01-3555-4a85-81a9-77f4012abf51",
-      "target_id": "fe5e6bce-1c57-4467-b227-bc96e21b4316",
-      "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "captured_ec220beb.bmp",
-          "threshold": 0.8,
-          "invert": true
-        }
       },
-      "action": {
-        "type": "press_key",
-        "params": {
-          "key": "tab",
-          "duration": 0.05
-        }
-      }
+      "priority": 0
     },
     {
       "id": "a3ddcfdc-2f7e-4a87-9d2b-97c085768d72",
@@ -233,12 +232,13 @@
       "trigger": {
         "type": "template_match",
         "params": {
-          "template": "captured_c8df8f9e.bmp",
+          "template": "captured_ec220beb.bmp",
           "threshold": 0.8,
           "invert": false
         }
       },
-      "action": null
+      "action": null,
+      "priority": 0
     },
     {
       "id": "396fa623-1658-452c-bb94-a4bb23a7ae13",
@@ -247,12 +247,13 @@
       "trigger": {
         "type": "template_match",
         "params": {
-          "template": "captured_a9895144.bmp",
+          "template": "captured_ec220beb.bmp",
           "threshold": 0.8,
           "invert": false
         }
       },
-      "action": null
+      "action": null,
+      "priority": 0
     },
     {
       "id": "5e87773f-83bd-4426-b6af-35339030b59b",
@@ -271,7 +272,8 @@
         "params": {
           "modifiers": "alt"
         }
-      }
+      },
+      "priority": 0
     },
     {
       "id": "e6b4f3a6-b801-4cbb-8dc9-735122562428",
@@ -288,7 +290,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "bb8b6782-b294-4ff5-a4f2-9f97c681b33d",
@@ -307,7 +310,8 @@
         "params": {
           "modifiers": "alt"
         }
-      }
+      },
+      "priority": 0
     },
     {
       "id": "b5a35f40-7493-4f79-bc3e-1f71b96a54d4",
@@ -321,7 +325,8 @@
           "invert": false
         }
       },
-      "action": null
+      "action": null,
+      "priority": 0
     },
     {
       "id": "0a6f5aee-9df2-48fd-9d62-2d4eaefc4231",
@@ -338,7 +343,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "e955ae8c-af62-405f-82bb-15615ad248da",
@@ -355,7 +361,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "d67c4f0a-38ab-4b24-ba71-0fda0885fd7b",
@@ -375,7 +382,8 @@
           "key": "w",
           "duration": 2.0
         }
-      }
+      },
+      "priority": 0
     },
     {
       "id": "c79e8b80-2775-4301-915a-07af1a8834e8",
@@ -392,7 +400,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "ad9007a9-bbd5-4882-95e6-7847e783d0a3",
@@ -409,7 +418,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "eaa322db-8c65-4515-9263-2daee1254bd8",
@@ -426,7 +436,8 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
     },
     {
       "id": "2f509323-a727-47d3-b4a1-e10abd9e2cd2",
@@ -443,7 +454,63 @@
       "action": {
         "type": "click_match",
         "params": {}
-      }
+      },
+      "priority": 0
+    },
+    {
+      "id": "e28d7ec6-3c52-4a3a-a9ae-57ec7bb47a5e",
+      "source_id": "48fe7b01-3555-4a85-81a9-77f4012abf51",
+      "target_id": "a8d9438f-28c0-4235-9a0b-a385d0d3332d",
+      "trigger": {
+        "type": "template_match",
+        "params": {
+          "template": "captured_ec220beb.bmp",
+          "threshold": 0.8,
+          "invert": true
+        }
+      },
+      "action": {
+        "type": "press_key",
+        "params": {
+          "key": "w",
+          "duration": 3.0
+        }
+      },
+      "priority": 0
+    },
+    {
+      "id": "616fb6d4-256f-4653-9b71-a91fbc72cd1a",
+      "source_id": "a8d9438f-28c0-4235-9a0b-a385d0d3332d",
+      "target_id": "919abacb-5dab-451e-a5b3-d20abb2dbaf4",
+      "trigger": {
+        "type": "immediate",
+        "params": {}
+      },
+      "action": {
+        "type": "press_key",
+        "params": {
+          "key": "tab",
+          "duration": 0.05
+        }
+      },
+      "priority": 0
+    },
+    {
+      "id": "ffe65d8f-b8fe-416e-aa05-8fb4d5a696f7",
+      "source_id": "919abacb-5dab-451e-a5b3-d20abb2dbaf4",
+      "target_id": "fe5e6bce-1c57-4467-b227-bc96e21b4316",
+      "trigger": {
+        "type": "immediate",
+        "params": {}
+      },
+      "action": {
+        "type": "press_key",
+        "params": {
+          "key": "left_click",
+          "duration": 0.05
+        }
+      },
+      "priority": 0
     }
   ]
 }

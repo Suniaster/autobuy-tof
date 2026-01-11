@@ -73,7 +73,7 @@ class GraphExecutor:
                         
                         # Execute Action
                         if edge.action:
-                            self.execute_action(edge.action, monitor)
+                            self.execute_action(edge.action, monitor, sct)
                         
                         # Transition
                         next_v = self.graph.vertices.get(edge.target_id)
@@ -145,7 +145,7 @@ class GraphExecutor:
              
         return False
 
-    def execute_action(self, action, monitor):
+    def execute_action(self, action, monitor, sct=None):
         if action.type == "click_match":
             if hasattr(self, 'last_match_loc') and self.last_match_loc:
                 loc = self.last_match_loc
@@ -176,6 +176,59 @@ class GraphExecutor:
                     for k in reversed(keys_to_hold):
                         try: keyboard.release(k)
                         except: pass
+
+        elif action.type == "center_camera":
+             # Visual Servoing Loop
+             target_tmpl = getattr(self, "last_matched_template_name", None)
+             if not target_tmpl or not sct: 
+                 print("Center Camera: No template or SCT available")
+                 return
+
+             tmpl_img = load_template(self.assets_dir, target_tmpl)
+             if tmpl_img is None: return
+             
+             # Servo Params
+             center_tolerance = 30 # pixels
+             max_iterations = 20   # avoid infinite loop
+             gain = 0.5            # movement speed factor
+             
+             print(f"Centering camera on {target_tmpl}...")
+             
+             for _ in range(max_iterations):
+                 # 1. Capture fresh frame
+                 img, sx, sy, _ = capture_and_scale(sct, self.hwnd, self.mode)
+                 if img is None: break
+                 
+                 # 2. Find Object
+                 val, loc, (w, h) = match_template_multiscale(img, tmpl_img)
+                 if val < 0.7: # Lost tracking
+                     print("Lost target during centering.")
+                     break
+                 
+                 # 3. Calculate Offset from Screen Center
+                 screen_w, screen_h = img.shape[1], img.shape[0]
+                 screen_cx, screen_cy = screen_w // 2, screen_h // 2
+                 obj_cx, obj_cy = loc[0] + w // 2, loc[1] + h // 2
+                 
+                 dx = obj_cx - screen_cx
+                 dy = obj_cy - screen_cy
+                 
+                 # 4. Check if centered
+                 if abs(dx) < center_tolerance and abs(dy) < center_tolerance:
+                     print("Target centered!")
+                     break
+                 
+                 # 5. Move Mouse
+                 move_x = int(dx * gain)
+                 move_y = int(dy * gain)
+                 
+                 if abs(move_x) < 2: move_x = 0
+                 if abs(move_y) < 2: move_y = 0
+                 
+                 if move_x == 0 and move_y == 0: break
+                 
+                 move_mouse_relative(move_x, move_y)
+                 time.sleep(0.05)
 
         elif action.type == "press_key":
             key = action.params.get("key")
