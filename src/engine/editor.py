@@ -14,6 +14,60 @@ import cv2
 import numpy as np
 from .model import Graph, Vertex, Edge, Trigger, Action
 from .executor import GraphExecutor
+import mss
+
+class RegionSelector(tk.Toplevel):
+    def __init__(self, master, on_select):
+        super().__init__(master)
+        self.on_select = on_select
+        self.attributes('-fullscreen', True)
+        self.attributes('-alpha', 0.3)
+        self.config(bg='black')
+        self.bind('<Escape>', self.close)
+        
+        self.canvas = tk.Canvas(self, cursor="cross", bg="grey11")
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        self.canvas.bind("<ButtonPress-1>", self.on_press)
+        self.canvas.bind("<B1-Motion>", self.on_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_release)
+        
+        # Transparent window fix for some OS (Windows usually needs more work for true click-through but we want to intercept clicks)
+        # We want to show a screenshot ideally? Or just Draw a rectangle on a transparent overlay.
+        # 'attributes -alpha' makes the WHOLE window transparent. 
+        # To make a "snipping tool" with Tkinter is tricky for perfect visuals, but a simple semi-transparent overlay works.
+        # We will use a canvas with a rectangle.
+        self.start_x = None
+        self.start_y = None
+        self.rect = None
+
+        # Capture screen for context (Optional, but helps visibility)
+        # For simplicity, we just use a grey overlay.
+
+    def on_press(self, event):
+        self.start_x = event.x
+        self.start_y = event.y
+        self.rect = self.canvas.create_rectangle(self.start_x, self.start_y, event.x, event.y, outline='red', width=2)
+
+    def on_drag(self, event):
+        self.canvas.coords(self.rect, self.start_x, self.start_y, event.x, event.y)
+
+    def on_release(self, event):
+        x1, y1 = self.start_x, self.start_y
+        x2, y2 = event.x, event.y
+        
+        x = min(x1, x2)
+        y = min(y1, y2)
+        w = abs(x2 - x1)
+        h = abs(y2 - y1)
+        
+        if w > 5 and h > 5:
+            self.on_select((x, y, w, h))
+        
+        self.close()
+
+    def close(self, event=None):
+        self.destroy()
+
 
 # Configuration
 GAME_TITLE_KEYWORD = "Tower of Fantasy"
@@ -534,7 +588,7 @@ class GraphEditor(tk.Tk):
         tk.Label(win, text="Trigger:").pack(pady=5)
         trig_type_var = tk.StringVar(value="template_match")
         if edge: trig_type_var.set(edge.trigger.type)
-        tk.OptionMenu(win, trig_type_var, "template_match", "immediate").pack()
+        tk.OptionMenu(win, trig_type_var, "template_match", "ocr_watch", "immediate").pack()
 
         # Trigger Options Container
         trig_opts = tk.Frame(win)
@@ -578,15 +632,72 @@ class GraphEditor(tk.Tk):
         if edge: invert_var.set(edge.trigger.params.get("invert", False))
         tk.Checkbutton(inv_frame, text="Invert (Trigger if NOT found)", variable=invert_var).pack()
 
+        # --- OCR Watch UI ---
+        ocr_frame = tk.Frame(trig_opts)
+        
+        # Region
+        tk.Label(ocr_frame, text="Region (x,y,w,h):").pack(pady=2)
+        region_var = tk.StringVar(value="0,0,100,50")
+        if edge and edge.trigger.type == "ocr_watch":
+            r = edge.trigger.params.get("region", [0,0,100,50])
+            region_var.set(f"{r[0]},{r[1]},{r[2]},{r[3]}")
+        
+        region_entry = tk.Entry(ocr_frame, textvariable=region_var)
+        region_entry.pack()
+        
+        def select_region():
+            self.attributes('-alpha', 0.0) # Hide main window
+            def on_select(rect):
+                self.attributes('-alpha', 1.0)
+                region_var.set(f"{rect[0]},{rect[1]},{rect[2]},{rect[3]}")
+                # Bring editor back to front
+                win.deiconify()
+            
+            # Minimize editor window temporarily
+            # win.withdraw() 
+            # Actually better to just launch selector
+            RegionSelector(self, on_select)
+            
+        tk.Button(ocr_frame, text="Select Region", command=select_region).pack(pady=2)
+        
+        # Condition
+        tk.Label(ocr_frame, text="Condition:").pack(pady=2)
+        cond_frame = tk.Frame(ocr_frame)
+        cond_frame.pack()
+        
+        cond_var = tk.StringVar(value=">")
+        if edge and edge.trigger.type == "ocr_watch":
+            cond_var.set(edge.trigger.params.get("condition", ">"))
+            
+        tk.OptionMenu(cond_frame, cond_var, ">", "<", "=", ">=", "<=", "!=").pack(side=tk.LEFT)
+        
+        # Value
+        val_var = tk.StringVar(value="0")
+        if edge and edge.trigger.type == "ocr_watch":
+            val_var.set(edge.trigger.params.get("value", "0"))
+        tk.Entry(cond_frame, textvariable=val_var, width=10).pack(side=tk.LEFT)
+        
+        # Interval
+        tk.Label(ocr_frame, text="Parse Interval (s):").pack(pady=2)
+        ocr_interval_var = tk.DoubleVar(value=1.0)
+        if edge and edge.trigger.type == "ocr_watch":
+            ocr_interval_var.set(edge.trigger.params.get("interval", 1.0))
+        tk.Entry(ocr_frame, textvariable=ocr_interval_var).pack()
+
         # Dynamic Trigger UI Support
         def update_trig_ui(*args):
             tmpl_frame.pack_forget()
+            ocr_frame.pack_forget()
+            
             t = trig_type_var.get()
             if t == "template_match":
                 tmpl_frame.pack(fill=tk.X)
+            elif t == "ocr_watch":
+                ocr_frame.pack(fill=tk.X)
         
         trig_type_var.trace("w", update_trig_ui)
         update_trig_ui()
+
 
 
         # Action
@@ -677,6 +788,18 @@ class GraphEditor(tk.Tk):
             trigger_params = {}
             if trig_type == "template_match":
                 trigger_params = {"template": tmpl, "threshold": conf, "invert": is_inverted}
+            elif trig_type == "ocr_watch":
+                try:
+                     r = [int(x) for x in region_var.get().split(",")]
+                     trigger_params = {
+                         "region": r,
+                         "condition": cond_var.get(),
+                         "value": float(val_var.get()),
+                         "interval": ocr_interval_var.get()
+                     }
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid OCR Parameters")
+                    return
             
             trigger = Trigger(trig_type, trigger_params)
             

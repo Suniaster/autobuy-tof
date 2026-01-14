@@ -4,3 +4,5 @@ pyautogui
 keyboard
 pywin32
 numpy
+easyocr
+Pillow

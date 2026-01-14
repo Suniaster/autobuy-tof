@@ -1,12 +1,12 @@
 import time
-import cv2
 import mss
-import pyautogui
 import os
-import keyboard
-from .model import Graph, Vertex, Edge
-from .utils import capture_and_scale, match_template_multiscale
-from helper.input_utils import click_direct_input
+import easyocr
+
+from .model import Graph
+from .utils import capture_and_scale
+from .triggers import check_trigger
+from .actions import execute_action
 
 class GraphExecutor:
     def __init__(self, graph: Graph, hwnd, templates_dir: str, on_state_change=None):
@@ -20,6 +20,12 @@ class GraphExecutor:
         self.mode = 1 # 1: Fast, 2: Slow
         self.template_cache = {}
         self.last_transition_time = time.time()
+        self.ocr_reader = None # Lazy init
+        
+        # Action context state
+        self.last_match_loc = None
+        self.last_match_size = None
+        self.last_matched_template_name = None
 
     def load_template(self, filename):
         if filename in self.template_cache:
@@ -30,6 +36,9 @@ class GraphExecutor:
             print(f"Warning: Template {path} not found")
             return None
         
+        # Load using cv2 from utils (or import cv2 here if needed, but we don't import cv2 at top to keep clean)
+        # Actually load_template needs cv2. Let's import cv2.
+        import cv2
         img = cv2.imread(path)
         if img is not None:
             self.template_cache[filename] = img
@@ -60,6 +69,14 @@ class GraphExecutor:
 
                 avg_scale = (sx + sy) / 2.0
                 
+                # Context for triggers/actions
+                context = {
+                    'img': img,
+                    'scale': avg_scale,
+                    'sct': sct,
+                    'monitor': monitor
+                }
+
                 # Check outgoing edges
                 edges = self.graph.get_outgoing_edges(self.current_vertex.id)
                 # Sort by Priority (Higher First)
@@ -68,12 +85,12 @@ class GraphExecutor:
                 transition_happened = False
 
                 for edge in edges:
-                    if self.check_trigger(edge.trigger, img, avg_scale):
+                    if check_trigger(edge.trigger, context, self):
                         print(f"[{self.current_vertex.name}] Triggered Edge to -> {edge.target_id}")
                         
                         # Execute Action
                         if edge.action:
-                            self.execute_action(edge.action, monitor, sct)
+                             execute_action(edge.action, context, self)
                         
                         # Transition
                         next_v = self.graph.vertices.get(edge.target_id)
@@ -103,6 +120,9 @@ class GraphExecutor:
                     time.sleep(0.1)
 
     def scan_for_state(self, img, scale):
+        # Imports needed for scan
+        from .utils import match_template_multiscale
+        
         for v in self.graph.vertices.values():
             if v.template and v.id != self.current_vertex.id:
                  tmpl = self.load_template(v.template)
@@ -112,168 +132,6 @@ class GraphExecutor:
                  if val >= 0.85: # High confidence for recovery
                      return v
         return None
-
-    def check_trigger(self, trigger, img, scale):
-        if trigger.type == "template_match":
-            template_name = trigger.params.get("template")
-            threshold = trigger.params.get("threshold", 0.8)
-            invert = trigger.params.get("invert", False)
-            
-            tmpl = self.load_template(template_name)
-            if tmpl is None: return False
-            
-            val, loc, _, _ = match_template_multiscale(img, tmpl, scale)
-            
-            found = (val >= threshold)
-            
-            if found:
-                # Store match info
-                self.last_match_loc = loc
-                self.last_match_size = (self.template_cache[template_name].shape[1], self.template_cache[template_name].shape[0])
-            
-            if invert:
-                return not found
-            else:
-                return found
-                
-        elif trigger.type == "immediate":
-            return True
-                
-        elif trigger.type == "wait":
-             # TODO: Implement time-based triggers
-             pass
-             
-        return False
-
-    def execute_action(self, action, monitor, sct=None):
-        if action.type == "click_match":
-            if hasattr(self, 'last_match_loc') and self.last_match_loc:
-                loc = self.last_match_loc
-                w, h = self.last_match_size
-                
-                center_x = loc[0] + w // 2
-                center_y = loc[1] + h // 2
-                
-                final_x = monitor["left"] + center_x
-                final_y = monitor["top"] + center_y
-                
-                # Modifiers
-                mods = action.params.get("modifiers", "")
-                keys_to_hold = [k.strip() for k in mods.split(",") if k.strip()]
-                
-                for k in keys_to_hold:
-                    try: keyboard.press(k)
-                    except: pass
-                
-                if keys_to_hold:
-                    time.sleep(0.05) # Safety delay for OS to register mods
-                    
-                try:
-                    pyautogui.moveTo(final_x, final_y)
-                    click_direct_input()
-                finally:
-                    # Release in reverse
-                    for k in reversed(keys_to_hold):
-                        try: keyboard.release(k)
-                        except: pass
-
-        elif action.type == "center_camera":
-             # Visual Servoing Loop
-             target_tmpl = getattr(self, "last_matched_template_name", None)
-             if not target_tmpl or not sct: 
-                 print("Center Camera: No template or SCT available")
-                 return
-
-             tmpl_img = load_template(self.assets_dir, target_tmpl)
-             if tmpl_img is None: return
-             
-             # Servo Params
-             center_tolerance = 30 # pixels
-             max_iterations = 20   # avoid infinite loop
-             gain = 0.5            # movement speed factor
-             
-             print(f"Centering camera on {target_tmpl}...")
-             
-             for _ in range(max_iterations):
-                 # 1. Capture fresh frame
-                 img, sx, sy, _ = capture_and_scale(sct, self.hwnd, self.mode)
-                 if img is None: break
-                 
-                 # 2. Find Object
-                 val, loc, (w, h) = match_template_multiscale(img, tmpl_img)
-                 if val < 0.7: # Lost tracking
-                     print("Lost target during centering.")
-                     break
-                 
-                 # 3. Calculate Offset from Screen Center
-                 screen_w, screen_h = img.shape[1], img.shape[0]
-                 screen_cx, screen_cy = screen_w // 2, screen_h // 2
-                 obj_cx, obj_cy = loc[0] + w // 2, loc[1] + h // 2
-                 
-                 dx = obj_cx - screen_cx
-                 dy = obj_cy - screen_cy
-                 
-                 # 4. Check if centered
-                 if abs(dx) < center_tolerance and abs(dy) < center_tolerance:
-                     print("Target centered!")
-                     break
-                 
-                 # 5. Move Mouse
-                 move_x = int(dx * gain)
-                 move_y = int(dy * gain)
-                 
-                 if abs(move_x) < 2: move_x = 0
-                 if abs(move_y) < 2: move_y = 0
-                 
-                 if move_x == 0 and move_y == 0: break
-                 
-                 move_mouse_relative(move_x, move_y)
-                 time.sleep(0.05)
-
-        elif action.type == "press_key":
-            key = action.params.get("key")
-            if key:
-                mods = action.params.get("modifiers", "")
-                keys_to_hold = [k.strip() for k in mods.split(",") if k.strip()]
-                
-                # Press Mods
-                for k in keys_to_hold:
-                    try: keyboard.press(k)
-                    except: pass
-                
-                if keys_to_hold:
-                    time.sleep(0.05) 
-
-                # TAP KEY
-                duration = float(action.params.get("duration", 0.05))
-                if duration < 0.01: duration = 0.01 # Safety
-                
-                if key.lower() == "left_click":
-                     # Special handling for mouse click
-                     try:
-                        click_direct_input()
-                        time.sleep(duration) 
-                     except Exception as e:
-                        print(f"Error clicking: {e}")
-                else:
-                    # Standard Keyboard Press
-                    try: 
-                        keyboard.press(key)
-                        time.sleep(duration)
-                        keyboard.release(key)
-                    except Exception as e:
-                        print(f"Error pressing key {key}: {e}")
-                    
-                time.sleep(0.05)
-
-                # Release Mods
-                for k in reversed(keys_to_hold):
-                    try: keyboard.release(k)
-                    except: pass
-                
-        elif action.type == "wait":
-            duration = action.params.get("duration", 0.5)
-            time.sleep(duration)
 
     def stop(self):
         self.running = False

@@ -57,6 +57,8 @@ python src/autobuyer_v2.py
 *   MSS (`mss`)
 *   PyAutoGUI (`pyautogui`)
 *   PyWin32 (`pywin32`)
+*   **EasyOCR**: Required for 'OCR Watch' triggers. (Installed automatically via pip)
+    *   Note: First time usage will download recognition models.
 
 ## Development
 To switch back to the legacy v1 script, run `src/autobuyer.py`.

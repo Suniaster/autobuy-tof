@@ -1,0 +1,41 @@
+{
+  "vertices": [
+    {
+      "id": "9c0a054b-961e-4183-bc95-718e88145877",
+      "name": "a",
+      "description": "",
+      "template": null,
+      "is_start": true
+    },
+    {
+      "id": "828fbec7-1aee-40a5-a9e0-6d8849cf281d",
+      "name": "b",
+      "description": "",
+      "template": null,
+      "is_start": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "e64de3f2-a254-4238-8984-c41cb68d8109",
+      "source_id": "9c0a054b-961e-4183-bc95-718e88145877",
+      "target_id": "828fbec7-1aee-40a5-a9e0-6d8849cf281d",
+      "trigger": {
+        "type": "ocr_watch",
+        "params": {
+          "region": [
+            591,
+            301,
+            118,
+            32
+          ],
+          "condition": ">",
+          "value": 15.0,
+          "interval": 1.0
+        }
+      },
+      "action": null,
+      "priority": 0
+    }
+  ]
+}
