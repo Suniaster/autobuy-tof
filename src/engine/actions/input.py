@@ -85,6 +85,44 @@ class PressKeyAction(Action):
             try: keyboard.release(k)
             except: pass
 
+class ClickPositionAction(Action):
+    def __init__(self, params):
+        self.x = int(params.get("x", 0))
+        self.y = int(params.get("y", 0))
+        self.modifiers = params.get("modifiers", "")
+
+    def execute(self, context, executor):
+        monitor = context.get('monitor')
+        if not monitor: return
+
+        # Calculate absolute position
+        # Assuming params x,y are coordinates within the window captured (client rect)
+        # or relative to monitor top-left.
+        # Based on OCR logic, we work with screen coordinates.
+        # If the user provides x,y, are they relative to the game window or screen?
+        # Usually relative to game window is preferred if the window moves.
+        # But 'monitor' here describes the client rect of the window in screen coords.
+        
+        final_x = monitor["left"] + self.x
+        final_y = monitor["top"] + self.y
+        
+        keys_to_hold = [k.strip() for k in self.modifiers.split(",") if k.strip()]
+        
+        for k in keys_to_hold:
+            try: keyboard.press(k)
+            except: pass
+        
+        if keys_to_hold:
+            time.sleep(0.05)
+            
+        try:
+            pyautogui.moveTo(final_x, final_y)
+            click_direct_input()
+        finally:
+            for k in reversed(keys_to_hold):
+                try: keyboard.release(k)
+                except: pass
+
 class WaitAction(Action):
     def __init__(self, params):
         self.duration = params.get("duration", 0.5)

@@ -68,6 +68,24 @@ class RegionSelector(tk.Toplevel):
     def close(self, event=None):
         self.destroy()
 
+class PointSelector(tk.Toplevel):
+    def __init__(self, master, on_select):
+        super().__init__(master)
+        self.on_select = on_select
+        self.attributes('-fullscreen', True)
+        self.attributes('-alpha', 0.3)
+        self.config(cursor="cross")
+        self.config(bg='black')
+        self.bind('<Escape>', self.close)
+        self.bind('<Button-1>', self.on_click)
+
+    def on_click(self, event):
+        self.on_select((event.x, event.y))
+        self.close()
+
+    def close(self, event=None):
+        self.destroy()
+
 
 # Configuration
 GAME_TITLE_KEYWORD = "Tower of Fantasy"
@@ -582,34 +600,40 @@ class GraphEditor(tk.Tk):
     def open_edge_window(self, source_id=None, target_id=None, edge=None):
         win = tk.Toplevel(self)
         win.title("Edge Properties")
-        win.geometry("400x480")
+        win.geometry("500x750") # Increased size
+        win.resizable(False, False)
 
-        # Trigger Type
-        tk.Label(win, text="Trigger:").pack(pady=5)
+        PAD_X = 10
+        PAD_Y = 5
+        
+        # --- Trigger Configuration ---
+        trigger_frame = tk.LabelFrame(win, text="Trigger Configuration", padx=PAD_X, pady=PAD_Y, font=("Arial", 10, "bold"), fg="#333")
+        trigger_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(trigger_frame, text="Type:").pack(anchor=tk.W)
         trig_type_var = tk.StringVar(value="template_match")
         if edge: trig_type_var.set(edge.trigger.type)
-        tk.OptionMenu(win, trig_type_var, "template_match", "ocr_watch", "immediate").pack()
+        tk.OptionMenu(trigger_frame, trig_type_var, "template_match", "ocr_watch", "immediate").pack(fill=tk.X, pady=2)
 
-        # Trigger Options Container
-        trig_opts = tk.Frame(win)
-        trig_opts.pack(pady=5, fill=tk.X)
+        # Container for Dynamic Trigger Options
+        trig_opts = tk.Frame(trigger_frame)
+        trig_opts.pack(fill=tk.X, pady=5)
         
         # --- Template Match UI ---
         tmpl_frame = tk.Frame(trig_opts)
         
-        tk.Label(tmpl_frame, text="Template Image:").pack(pady=2)
+        tk.Label(tmpl_frame, text="Template Image:").pack(anchor=tk.W)
         inner_tmpl = tk.Frame(tmpl_frame)
-        inner_tmpl.pack()
+        inner_tmpl.pack(fill=tk.X)
         
         tmpl_var = tk.StringVar()
         if edge: tmpl_var.set(edge.trigger.params.get("template", ""))
-        tmpl_entry = tk.Entry(inner_tmpl, textvariable=tmpl_var, width=30)
-        tmpl_entry.pack(side=tk.LEFT)
+        tk.Entry(inner_tmpl, textvariable=tmpl_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         def paste_image():
             filename = self.save_clipboard_image()
             if filename: tmpl_var.set(filename)
-        tk.Button(inner_tmpl, text="Paste (Ctrl+V)", command=paste_image).pack(side=tk.LEFT, padx=5)
+        tk.Button(inner_tmpl, text="Paste", command=paste_image).pack(side=tk.LEFT, padx=5)
 
         preview_label = tk.Label(tmpl_frame)
         preview_label.pack(pady=5)
@@ -623,115 +647,128 @@ class GraphEditor(tk.Tk):
             else:
                 preview_label.config(image="", text="(No Image)" if fname else "")
         tmpl_var.trace("w", update_preview)
-        update_preview() # init
+        update_preview()
         
-        # Invert Checkbox
         inv_frame = tk.Frame(tmpl_frame)
-        inv_frame.pack(pady=2)
+        inv_frame.pack(fill=tk.X, pady=2)
         invert_var = tk.BooleanVar()
         if edge: invert_var.set(edge.trigger.params.get("invert", False))
-        tk.Checkbutton(inv_frame, text="Invert (Trigger if NOT found)", variable=invert_var).pack()
+        tk.Checkbutton(inv_frame, text="Invert Condition (Trigger if NOT found)", variable=invert_var).pack(anchor=tk.W)
 
         # --- OCR Watch UI ---
         ocr_frame = tk.Frame(trig_opts)
         
-        # Region
-        tk.Label(ocr_frame, text="Region (x,y,w,h):").pack(pady=2)
+        tk.Label(ocr_frame, text="Region (x, y, w, h):").pack(anchor=tk.W)
+        ocr_row1 = tk.Frame(ocr_frame)
+        ocr_row1.pack(fill=tk.X)
+        
         region_var = tk.StringVar(value="0,0,100,50")
         if edge and edge.trigger.type == "ocr_watch":
             r = edge.trigger.params.get("region", [0,0,100,50])
             region_var.set(f"{r[0]},{r[1]},{r[2]},{r[3]}")
-        
-        region_entry = tk.Entry(ocr_frame, textvariable=region_var)
-        region_entry.pack()
+        tk.Entry(ocr_row1, textvariable=region_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
         
         def select_region():
-            self.attributes('-alpha', 0.0) # Hide main window
-            def on_select(rect):
-                self.attributes('-alpha', 1.0)
-                region_var.set(f"{rect[0]},{rect[1]},{rect[2]},{rect[3]}")
-                # Bring editor back to front
-                win.deiconify()
-            
-            # Minimize editor window temporarily
-            # win.withdraw() 
-            # Actually better to just launch selector
-            RegionSelector(self, on_select)
-            
-        tk.Button(ocr_frame, text="Select Region", command=select_region).pack(pady=2)
+             self.attributes('-alpha', 0.0)
+             def on_select(rect):
+                 self.attributes('-alpha', 1.0)
+                 region_var.set(f"{rect[0]},{rect[1]},{rect[2]},{rect[3]}")
+                 win.deiconify()
+             RegionSelector(self, on_select)
+             
+        tk.Button(ocr_row1, text="Select", command=select_region).pack(side=tk.LEFT, padx=5)
         
-        # Condition
-        tk.Label(ocr_frame, text="Condition:").pack(pady=2)
-        cond_frame = tk.Frame(ocr_frame)
-        cond_frame.pack()
+        ocr_row2 = tk.Frame(ocr_frame)
+        ocr_row2.pack(fill=tk.X, pady=5)
         
+        tk.Label(ocr_row2, text="Condition:").pack(side=tk.LEFT)
         cond_var = tk.StringVar(value=">")
         if edge and edge.trigger.type == "ocr_watch":
             cond_var.set(edge.trigger.params.get("condition", ">"))
-            
-        tk.OptionMenu(cond_frame, cond_var, ">", "<", "=", ">=", "<=", "!=").pack(side=tk.LEFT)
+        tk.OptionMenu(ocr_row2, cond_var, ">", "<", "=", ">=", "<=", "!=").pack(side=tk.LEFT, padx=5)
         
-        # Value
+        tk.Label(ocr_row2, text="Value:").pack(side=tk.LEFT)
         val_var = tk.StringVar(value="0")
         if edge and edge.trigger.type == "ocr_watch":
             val_var.set(edge.trigger.params.get("value", "0"))
-        tk.Entry(cond_frame, textvariable=val_var, width=10).pack(side=tk.LEFT)
+        tk.Entry(ocr_row2, textvariable=val_var, width=10).pack(side=tk.LEFT, padx=5)
         
-        # Interval
-        tk.Label(ocr_frame, text="Parse Interval (s):").pack(pady=2)
+        tk.Label(ocr_frame, text="Parse Interval (s):").pack(anchor=tk.W)
         ocr_interval_var = tk.DoubleVar(value=1.0)
         if edge and edge.trigger.type == "ocr_watch":
             ocr_interval_var.set(edge.trigger.params.get("interval", 1.0))
-        tk.Entry(ocr_frame, textvariable=ocr_interval_var).pack()
+        tk.Entry(ocr_frame, textvariable=ocr_interval_var).pack(fill=tk.X)
 
-        # Dynamic Trigger UI Support
         def update_trig_ui(*args):
             tmpl_frame.pack_forget()
             ocr_frame.pack_forget()
-            
             t = trig_type_var.get()
-            if t == "template_match":
-                tmpl_frame.pack(fill=tk.X)
-            elif t == "ocr_watch":
-                ocr_frame.pack(fill=tk.X)
+            if t == "template_match": tmpl_frame.pack(fill=tk.X)
+            elif t == "ocr_watch": ocr_frame.pack(fill=tk.X)
         
         trig_type_var.trace("w", update_trig_ui)
         update_trig_ui()
 
 
-
-        # Action
-        tk.Label(win, text="Action:").pack(pady=5)
+        # --- Action Configuration ---
+        action_frame = tk.LabelFrame(win, text="Action Configuration", padx=PAD_X, pady=PAD_Y, font=("Arial", 10, "bold"), fg="#333")
+        action_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        tk.Label(action_frame, text="Type:").pack(anchor=tk.W)
         action_var = tk.StringVar(value="None")
         if edge and edge.action: action_var.set(edge.action.type)
         elif edge is None: action_var.set("click_match") 
         
-        opt = tk.OptionMenu(win, action_var, "None", "click_match", "press_key", "wait", "center_camera")
-        opt.pack()
+        tk.OptionMenu(action_frame, action_var, "None", "click_match", "press_key", "wait", "center_camera", "click_position").pack(fill=tk.X, pady=2)
 
-        # Container for Dynamic Options
-        options_container = tk.Frame(win)
-        options_container.pack(pady=5, fill=tk.X)
+        options_container = tk.Frame(action_frame)
+        options_container.pack(fill=tk.X, pady=5)
 
         # Dynamic Frames
         key_frame = tk.Frame(options_container)
         mods_frame_container = tk.Frame(options_container)
+        pos_frame = tk.Frame(options_container)
         
-        # --- Key Field + Duration ---
-        tk.Label(key_frame, text="Key (for Press Key):").pack(pady=2)
+        # -> Key + Duration
+        tk.Label(key_frame, text="Key:").pack(anchor=tk.W)
         key_var = tk.StringVar()
         if edge and edge.action: key_var.set(edge.action.params.get("key", ""))
-        tk.Entry(key_frame, textvariable=key_var).pack()
+        tk.Entry(key_frame, textvariable=key_var).pack(fill=tk.X)
         
-        tk.Label(key_frame, text="Duration (s):").pack(pady=2)
+        tk.Label(key_frame, text="Duration (s):").pack(anchor=tk.W)
         dur_var = tk.DoubleVar(value=0.05)
         if edge and edge.action: dur_var.set(edge.action.params.get("duration", 0.05))
-        tk.Entry(key_frame, textvariable=dur_var).pack()
+        tk.Entry(key_frame, textvariable=dur_var).pack(fill=tk.X)
 
-        # --- Modifiers Field ---
-        tk.Label(mods_frame_container, text="Modifiers:").pack(pady=5)
+        # -> Position Fields
+        tk.Label(pos_frame, text="Position (x, y):").pack(anchor=tk.W)
+        pos_inner = tk.Frame(pos_frame)
+        pos_inner.pack(fill=tk.X)
+        
+        x_var = tk.IntVar(value=0)
+        y_var = tk.IntVar(value=0)
+        if edge and edge.action and edge.action.type == "click_position":
+            x_var.set(edge.action.params.get("x", 0))
+            y_var.set(edge.action.params.get("y", 0))
+            
+        tk.Entry(pos_inner, textvariable=x_var, width=10).pack(side=tk.LEFT)
+        tk.Label(pos_inner, text=",").pack(side=tk.LEFT)
+        tk.Entry(pos_inner, textvariable=y_var, width=10).pack(side=tk.LEFT)
+        
+        def select_point():
+             self.attributes('-alpha', 0.0)
+             def on_point(pt):
+                 self.attributes('-alpha', 1.0)
+                 x_var.set(pt[0])
+                 y_var.set(pt[1])
+                 win.deiconify()
+             PointSelector(self, on_point)
+        tk.Button(pos_inner, text="Select Cursor", command=select_point).pack(side=tk.LEFT, padx=10)
+
+        # -> Modifiers
+        tk.Label(mods_frame_container, text="Modifiers:").pack(anchor=tk.W)
         mods_frame = tk.Frame(mods_frame_container)
-        mods_frame.pack()
+        mods_frame.pack(fill=tk.X)
         
         current_mods = []
         if edge and edge.action:
@@ -744,32 +781,40 @@ class GraphEditor(tk.Tk):
             mod_vars[mod_key] = var
             tk.Checkbutton(mods_frame, text=mod_key.capitalize(), variable=var).pack(side=tk.LEFT, padx=5)
 
-        # Update Function
-        def update_ui(*args):
+        def update_act_ui(*args):
             key_frame.pack_forget()
             mods_frame_container.pack_forget()
-            
+            pos_frame.pack_forget()
             val = action_var.get()
             if val == "press_key":
-                key_frame.pack(pady=2)
-                mods_frame_container.pack(pady=2)
+                key_frame.pack(fill=tk.X, pady=2)
+                mods_frame_container.pack(fill=tk.X, pady=2)
             elif val == "click_match":
-                mods_frame_container.pack(pady=2)
-            # wait/None -> hide all
-            
-        action_var.trace("w", update_ui)
-        update_ui() # Set initial state
+                mods_frame_container.pack(fill=tk.X, pady=2)
+            elif val == "click_position":
+                pos_frame.pack(fill=tk.X, pady=2)
+                mods_frame_container.pack(fill=tk.X, pady=2)
+        
+        action_var.trace("w", update_act_ui)
+        update_act_ui() 
 
-        tk.Label(win, text="Confidence:").pack(pady=5) # This will be packed after the dynamic frames
+
+        # --- Settings ---
+        settings_frame = tk.LabelFrame(win, text="Advanced Settings", padx=PAD_X, pady=PAD_Y, font=("Arial", 10, "bold"), fg="#333")
+        settings_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        s_row1 = tk.Frame(settings_frame)
+        s_row1.pack(fill=tk.X)
+        
+        tk.Label(s_row1, text="Confidence:").pack(side=tk.LEFT)
         conf_var = tk.DoubleVar(value=0.8)
         if edge: conf_var.set(edge.trigger.params.get("threshold", 0.8))
-        tk.Entry(win, textvariable=conf_var).pack()
+        tk.Entry(s_row1, textvariable=conf_var, width=8).pack(side=tk.LEFT, padx=5)
         
-        # Priority
-        tk.Label(win, text="Priority (Higher = First):").pack(pady=5)
+        tk.Label(s_row1, text="Priority:").pack(side=tk.LEFT, padx=(20, 0))
         prio_var = tk.IntVar(value=0)
         if edge: prio_var.set(edge.priority)
-        tk.Entry(win, textvariable=prio_var).pack()
+        tk.Entry(s_row1, textvariable=prio_var, width=8).pack(side=tk.LEFT, padx=5)
 
         def save():
             trig_type = trig_type_var.get()
@@ -781,7 +826,6 @@ class GraphEditor(tk.Tk):
             duration = dur_var.get()
             priority = prio_var.get()
             
-            # Reconstruct modifiers string
             selected_mods = [k for k, v in mod_vars.items() if v.get()]
             mods_str = ", ".join(selected_mods)
             
@@ -809,6 +853,10 @@ class GraphEditor(tk.Tk):
                 if mods_str: action_params["modifiers"] = mods_str
                 if target_key: action_params["key"] = target_key
                 if act_type == "press_key": action_params["duration"] = duration
+                if act_type == "click_position":
+                    action_params["x"] = x_var.get()
+                    action_params["y"] = y_var.get()
+                
                 action = Action(act_type, action_params)
 
             if edge:
@@ -820,7 +868,8 @@ class GraphEditor(tk.Tk):
                 self.graph.add_edge(new_edge)
             win.destroy()
             self.refresh_canvas()
-        tk.Button(win, text="Save", command=save, bg="lightgreen").pack(pady=20)
+
+        tk.Button(win, text="Save Changes", command=save, bg="#4CAF50", fg="white", font=("Arial", 11, "bold")).pack(pady=20, fill=tk.X, padx=20, ipady=5)
         win.bind("<Control-v>", lambda e: paste_image())
 
     def on_paste_hotkey(self, event):

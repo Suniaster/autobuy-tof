@@ -1,4 +1,4 @@
-from .input import ClickMatchAction, PressKeyAction, WaitAction
+from .input import ClickMatchAction, PressKeyAction, WaitAction, ClickPositionAction
 from .camera import CenterCameraAction
 
 def execute_action(action_data, context, executor):
@@ -9,6 +9,8 @@ def execute_action(action_data, context, executor):
         handler = PressKeyAction(action_data.params)
     elif action_data.type == "wait":
         handler = WaitAction(action_data.params)
+    elif action_data.type == "click_position":
+        handler = ClickPositionAction(action_data.params)    
     elif action_data.type == "center_camera":
         handler = CenterCameraAction(action_data.params)
 
