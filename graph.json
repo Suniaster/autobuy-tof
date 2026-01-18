@@ -38,58 +38,62 @@
         "type": "click_match",
         "params": {}
       },
-      "priority": 0
+      "priority": 0,
+      "points": null
     },
     {
       "id": "auto_refresh",
       "source_id": "refreshing",
       "target_id": "refreshing",
       "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "refresh_icon_template.png",
-          "threshold": 0.8
-        }
-      },
-      "action": {
-        "type": "click_match",
+        "type": "immediate",
         "params": {}
       },
-      "priority": 0
+      "action": {
+        "type": "click_position",
+        "params": {
+          "x": 1580,
+          "y": 163
+        }
+      },
+      "priority": 0,
+      "points": null
     },
     {
       "id": "confirm_buy",
       "source_id": "buying",
       "target_id": "confirming",
       "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "confirm_template.png",
-          "threshold": 0.8
-        }
-      },
-      "action": {
-        "type": "click_match",
+        "type": "immediate",
         "params": {}
       },
-      "priority": 0
+      "action": {
+        "type": "click_position",
+        "params": {
+          "x": 963,
+          "y": 776
+        }
+      },
+      "priority": 0,
+      "points": null
     },
     {
       "id": "finish_transaction",
       "source_id": "confirming",
       "target_id": "refreshing",
       "trigger": {
-        "type": "template_match",
-        "params": {
-          "template": "ok_template.png",
-          "threshold": 0.8
-        }
-      },
-      "action": {
-        "type": "click_match",
+        "type": "immediate",
         "params": {}
       },
-      "priority": 0
+      "action": {
+        "type": "click_position",
+        "params": {
+          "x": 1193,
+          "y": 598
+        }
+      },
+      "priority": 0,
+      "points": null
     }
   ]
 }

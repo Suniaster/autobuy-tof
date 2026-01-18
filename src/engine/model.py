@@ -36,13 +36,14 @@ class Edge:
     """
     A transition between two vertices (states).
     """
-    def __init__(self, source_id: str, target_id: str, trigger: Trigger, action: Optional[Action] = None, id: str = None, priority: int = 0):
+    def __init__(self, source_id: Optional[str], target_id: Optional[str], trigger: Trigger, action: Optional[Action] = None, id: str = None, priority: int = 0, points: List[float] = None):
         self.id = id or str(uuid.uuid4())
         self.source_id = source_id
         self.target_id = target_id
         self.trigger = trigger
         self.action = action
         self.priority = priority
+        self.points = points # [x1, y1, x2, y2] for disconnected ends
 
     def to_dict(self):
         return {
@@ -51,7 +52,8 @@ class Edge:
             "target_id": self.target_id,
             "trigger": self.trigger.to_dict(),
             "action": self.action.to_dict() if self.action else None,
-            "priority": self.priority
+            "priority": self.priority,
+            "points": self.points
         }
 
     @staticmethod
@@ -59,12 +61,13 @@ class Edge:
         trigger = Trigger.from_dict(data["trigger"])
         action = Action.from_dict(data["action"]) if data.get("action") else None
         return Edge(
-            source_id=data["source_id"],
-            target_id=data["target_id"],
+            source_id=data.get("source_id"),
+            target_id=data.get("target_id"),
             trigger=trigger,
             action=action,
             id=data.get("id"),
-            priority=data.get("priority", 0)
+            priority=data.get("priority", 0),
+            points=data.get("points")
         )
 
 class Vertex:

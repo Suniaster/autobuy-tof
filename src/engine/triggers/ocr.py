@@ -26,19 +26,28 @@ class OCRWatchTrigger(Trigger):
         img_gray = cv2.cvtColor(img_np, cv2.COLOR_BGRA2GRAY)
         
         try:
+            # Enhanced Preprocessing
+            # 1. Upscale (Linear or Cubic) to help with small text
+            scale_factor = 3
+            width = int(img_gray.shape[1] * scale_factor)
+            height = int(img_gray.shape[0] * scale_factor)
+            img_large = cv2.resize(img_gray, (width, height), interpolation=cv2.INTER_CUBIC)
+            
+            # 2. Thresholding (Otsu's binarization)
+            _, img_thresh = cv2.threshold(img_large, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
             # allowlist for numbers
-            results = executor.ocr_reader.readtext(img_gray, allowlist='0123456789.-', detail=0)
+            results = executor.ocr_reader.readtext(img_thresh, allowlist='0123456789.-', detail=0)
             
             # Results is a list of strings found. Join them or check first valid number
             text = " ".join(results)
-            if text.strip():
-                print(f"OCR Raw: '{text}'")
+            print(f"[OCR CHECK] Raw: '{text}' | Region: {self.region}")
             
             # Extract numbers
             nums = re.findall(r"[-+]?\d*\.\d+|\d+", text)
             if nums:
                 val = float(nums[0])
-                print(f"OCR Value: {val} (Target: {self.target_val}, Condition: {self.condition})")
+                print(f"[OCR CHECK] Value: {val} (Target: {self.target_val}, Condition: {self.condition})")
                 
                 if self.condition == ">": return val > self.target_val
                 elif self.condition == "<": return val < self.target_val

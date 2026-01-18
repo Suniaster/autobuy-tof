@@ -6,3 +6,4 @@ pywin32
 numpy
 easyocr
 Pillow
+customtkinter

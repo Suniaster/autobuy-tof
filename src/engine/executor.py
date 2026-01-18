@@ -9,7 +9,7 @@ from .triggers import check_trigger
 from .actions import execute_action
 
 class GraphExecutor:
-    def __init__(self, graph: Graph, hwnd, templates_dir: str, on_state_change=None):
+    def __init__(self, graph: Graph, hwnd, templates_dir: str, on_state_change=None, ocr_reader=None):
         self.graph = graph
         self.hwnd = hwnd
         self.templates_dir = templates_dir
@@ -20,7 +20,7 @@ class GraphExecutor:
         self.mode = 1 # 1: Fast, 2: Slow
         self.template_cache = {}
         self.last_transition_time = time.time()
-        self.ocr_reader = None # Lazy init
+        self.ocr_reader = ocr_reader # Persistent reader if provided
         
         # Action context state
         self.last_match_loc = None
@@ -92,7 +92,10 @@ class GraphExecutor:
                         if edge.action:
                              execute_action(edge.action, context, self)
                         
-                        # Transition
+                        # Transition (only if target exists)
+                        if not edge.target_id:
+                            continue
+
                         next_v = self.graph.vertices.get(edge.target_id)
                         if next_v:
                             self.current_vertex = next_v
@@ -108,8 +111,6 @@ class GraphExecutor:
                 if not transition_happened:
                     # Stuck Check
                     if time.time() - self.last_transition_time > 5.0:
-                        # Attempt Recovery
-                        print(f"[{self.current_vertex.name}] Stuck? Scanning for other states...")
                         found_state = self.scan_for_state(img, avg_scale)
                         if found_state:
                              print(f"-> Recovered to state: {found_state.name}")
@@ -117,7 +118,7 @@ class GraphExecutor:
                              self.last_transition_time = time.time()
                              if self.on_state_change:
                                 self.on_state_change(self.current_vertex.id)
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
     def scan_for_state(self, img, scale):
         # Imports needed for scan
