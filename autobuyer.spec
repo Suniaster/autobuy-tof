@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['src\\autobuyer.py'],
+    ['src\\autobuyer_v2.py'],
     pathex=[],
     binaries=[],
     datas=[],

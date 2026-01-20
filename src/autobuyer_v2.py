@@ -42,7 +42,7 @@ def launch_editor(graph_file, assets_dir):
 
 def main():
     parser = argparse.ArgumentParser(description="Autobuyer V2 - Graph Based")
-    parser.add_argument("--edit", action="store_true", help="Launch the Graph Editor")
+    parser.add_argument("--run", action="store_true", help="Launch the Graph Runner (Autobuyer)")
     parser.add_argument("--graph", type=str, default=DEFAULT_GRAPH_FILE, help="Path to graph JSON file")
     args = parser.parse_args()
 
@@ -53,7 +53,7 @@ def main():
 
     templates_dir = get_asset_path()
 
-    if args.edit:
+    if not args.run:
         launch_editor(graph_path, templates_dir)
         return
 
@@ -64,7 +64,7 @@ def main():
 
     if not os.path.exists(graph_path):
         print(f"Error: Graph file '{graph_path}' not found!")
-        print("Run with --edit to create one.")
+        print("Run normally (without --run) to create one in the editor.")
         return
 
     try:

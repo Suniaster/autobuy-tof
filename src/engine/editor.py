@@ -19,6 +19,7 @@ from .model import Graph, Vertex, Edge, Trigger, Action
 from .executor import GraphExecutor
 from .selectors import RegionSelector, PointSelector
 import mss
+import zipfile
 
 
 # Configuration
@@ -149,6 +150,7 @@ class GraphEditor(ctk.CTk):
         file_menu.add_command(label="New", command=self.new_graph)
         file_menu.add_command(label="Open", command=self.load_graph)
         file_menu.add_command(label="Save", command=self.save_graph)
+        file_menu.add_command(label="Export", command=self.export_to_zip)
         menubar.add_cascade(label="File", menu=file_menu)
         self.config(menu=menubar)
 
@@ -413,6 +415,34 @@ class GraphEditor(ctk.CTk):
             with open(filepath + ".layout", "w") as f:
                 json.dump(self.node_coords, f)
             messagebox.showinfo("Saved", "Graph saved!")
+
+    def export_to_zip(self):
+        filepath = filedialog.asksaveasfilename(defaultextension=".zip", filetypes=[("ZIP Files", "*.zip")])
+        if filepath:
+            try:
+                # 1. Create Zip File
+                with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                    # 2. Add Graph JSON
+                    graph_json = self.graph.to_json()
+                    zipf.writestr("graph.json", graph_json)
+                    
+                    # 3. Add Layout JSON
+                    layout_json = json.dumps(self.node_coords)
+                    zipf.writestr("graph.json.layout", layout_json)
+                    
+                    # 4. Add Assets
+                    if os.path.exists(self.assets_dir):
+                        for root, dirs, files in os.walk(self.assets_dir):
+                            for file in files:
+                                # Create path relative to assets_dir
+                                abs_path = os.path.join(root, file)
+                                rel_path = os.path.relpath(abs_path, self.assets_dir)
+                                # Add to zip under 'assets/' folder
+                                zipf.write(abs_path, arcname=os.path.join("assets", rel_path))
+                                
+                messagebox.showinfo("Exported", f"Successfully exported to {filepath}")
+            except Exception as e:
+                messagebox.showerror("Export Error", str(e))
 
     def load_graph(self):
         filepath = filedialog.askopenfilename(filetypes=[("JSON Files", "*.json")])
@@ -701,16 +731,21 @@ class GraphEditor(ctk.CTk):
         for tag in tags:
             if tag.startswith("handle:"):
                 # handle:edge_id:source/target
-                parts = tag.split(":")
-                self.edge_drag = (parts[1], parts[2])
+                # robust split to handle IDs with colons
+                prefix_len = len("handle:")
+                content = tag[prefix_len:]
+                # We expect {id}:{type}, so split from right once
+                edge_id, end_type = content.rsplit(":", 1)
+                
+                self.edge_drag = (edge_id, end_type)
                 self.set_mode("REWIRE") # Temporary mode for dragging edge end
                 return
             elif tag.startswith("node:"):
                 clicked_type = "node"
-                clicked_id = tag.split(":")[1]
+                clicked_id = tag.split(":", 1)[1]
             elif tag.startswith("edge:"):
                 clicked_type = "edge"
-                clicked_id = tag.split(":")[1]
+                clicked_id = tag.split(":", 1)[1]
 
         wx, wy = self.screen_to_world(event.x, event.y)
 
@@ -1146,9 +1181,9 @@ class GraphEditor(ctk.CTk):
         ctk.CTkEntry(ocr_row2, textvariable=val_var, width=60).pack(side=tk.LEFT, padx=5)
         
         ctk.CTkLabel(ocr_frame, text="Parse Interval (s):").pack(anchor=tk.W)
-        ocr_interval_var = tk.DoubleVar(value=1.0)
+        ocr_interval_var = tk.StringVar(value="1.0")
         if edge and edge.trigger.type == "ocr_watch":
-            ocr_interval_var.set(edge.trigger.params.get("interval", 1.0))
+            ocr_interval_var.set(str(edge.trigger.params.get("interval", 1.0)))
         ctk.CTkEntry(ocr_frame, textvariable=ocr_interval_var).pack(fill=tk.X)
 
         def update_trig_ui(*args):
@@ -1188,8 +1223,8 @@ class GraphEditor(ctk.CTk):
         ctk.CTkEntry(key_frame, textvariable=key_var).pack(fill=tk.X)
         
         ctk.CTkLabel(key_frame, text="Duration (s):").pack(anchor=tk.W)
-        dur_var = tk.DoubleVar(value=0.05)
-        if edge and edge.action: dur_var.set(edge.action.params.get("duration", 0.05))
+        dur_var = tk.StringVar(value="0.05")
+        if edge and edge.action: dur_var.set(str(edge.action.params.get("duration", 0.05)))
         ctk.CTkEntry(key_frame, textvariable=dur_var).pack(fill=tk.X)
 
         # -> Position Fields
@@ -1197,11 +1232,11 @@ class GraphEditor(ctk.CTk):
         pos_inner = ctk.CTkFrame(pos_frame, fg_color="transparent")
         pos_inner.pack(fill=tk.X)
         
-        x_var = tk.IntVar(value=0)
-        y_var = tk.IntVar(value=0)
+        x_var = tk.StringVar(value="0")
+        y_var = tk.StringVar(value="0")
         if edge and edge.action and edge.action.type == "click_position":
-            x_var.set(edge.action.params.get("x", 0))
-            y_var.set(edge.action.params.get("y", 0))
+            x_var.set(str(edge.action.params.get("x", 0)))
+            y_var.set(str(edge.action.params.get("y", 0)))
             
         ctk.CTkEntry(pos_inner, textvariable=x_var, width=80).pack(side=tk.LEFT)
         ctk.CTkLabel(pos_inner, text=",").pack(side=tk.LEFT, padx=5)
@@ -1258,13 +1293,13 @@ class GraphEditor(ctk.CTk):
         s_row1.pack(fill=tk.X)
         
         ctk.CTkLabel(s_row1, text="Confidence:").pack(side=tk.LEFT)
-        conf_var = tk.DoubleVar(value=0.8)
-        if edge: conf_var.set(edge.trigger.params.get("threshold", 0.8))
+        conf_var = tk.StringVar(value="0.8")
+        if edge: conf_var.set(str(edge.trigger.params.get("threshold", 0.8)))
         ctk.CTkEntry(s_row1, textvariable=conf_var, width=60).pack(side=tk.LEFT, padx=5)
         
         ctk.CTkLabel(s_row1, text="Priority:").pack(side=tk.LEFT, padx=(20, 0))
-        prio_var = tk.IntVar(value=0)
-        if edge: prio_var.set(edge.priority)
+        prio_var = tk.StringVar(value="0")
+        if edge: prio_var.set(str(edge.priority))
         ctk.CTkEntry(s_row1, textvariable=prio_var, width=60).pack(side=tk.LEFT, padx=5)
 
         def save():
@@ -1314,8 +1349,12 @@ class GraphEditor(ctk.CTk):
                 if target_key: action_params["key"] = target_key
                 if act_type == "press_key": action_params["duration"] = duration
                 if act_type == "click_position":
-                    action_params["x"] = x_var.get()
-                    action_params["y"] = y_var.get()
+                    try: x = int(x_var.get())
+                    except: x = 0
+                    try: y = int(y_var.get())
+                    except: y = 0
+                    action_params["x"] = x
+                    action_params["y"] = y
                 
                 action = Action(act_type, action_params)
 

@@ -11,7 +11,7 @@ python -m PyInstaller --noconfirm --onefile --console --name "autobuyer" ^
     --hidden-import "mss" ^
     --hidden-import "keyboard" ^
     --hidden-import "win32gui" ^
-    "src\autobuyer.py"
+    "src\autobuyer_v2.py"
 
 echo Build complete.
 echo Copying assets...
