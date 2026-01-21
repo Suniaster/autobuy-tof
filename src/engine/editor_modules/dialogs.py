@@ -9,6 +9,60 @@ from ..selectors import RegionSelector, PointSelector
 from .defs import THEME
 from ..model import Trigger, Action, Edge, Vertex
 
+class MacroNameDialog(ctk.CTkToplevel):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.parent = parent
+        self.result = None
+        
+        self.title("Export Macro")
+        self.geometry("350x180")
+        self.transient(parent)
+        self.grab_set()
+        
+        self.name_var = tk.StringVar(value="macro")
+        self._init_ui()
+        
+        # Center window
+        self.update_idletasks()
+        w = self.winfo_width()
+        h = self.winfo_height()
+        x = parent.winfo_x() + (parent.winfo_width() // 2) - (w // 2)
+        y = parent.winfo_y() + (parent.winfo_height() // 2) - (h // 2)
+        self.geometry(f"+{x}+{y}")
+        
+    def _init_ui(self):
+        ctk.CTkLabel(self, text="Enter a name for this macro:", font=("Segoe UI", 14)).pack(pady=(20, 10))
+        
+        self.entry = ctk.CTkEntry(self, textvariable=self.name_var, width=250)
+        self.entry.pack(pady=5)
+        self.entry.focus()
+        self.entry.bind("<Return>", lambda e: self.confirm())
+        
+        ctk.CTkLabel(self, text="(This will be the name of the .json file)", font=("Segoe UI", 10), text_color=THEME["text_sub"]).pack(pady=(0, 15))
+        
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(pady=5)
+        
+        ctk.CTkButton(btn_frame, text="Export", command=self.confirm, width=100, fg_color=THEME["accent_emerald"], hover_color=THEME["node_border"]).pack(side=tk.LEFT, padx=10)
+        ctk.CTkButton(btn_frame, text="Cancel", command=self.cancel, width=100, fg_color="transparent", border_width=1, border_color=THEME["node_border"]).pack(side=tk.LEFT, padx=10)
+
+    def confirm(self):
+        name = self.name_var.get().strip()
+        if name:
+            # Simple sanitization
+            safe_name = "".join([c for c in name if c.isalnum() or c in (' ', '-', '_')]).strip()
+            if not safe_name:
+                messagebox.showwarning("Warning", "Invalid name!")
+                return
+            self.result = safe_name
+            self.destroy()
+        else:
+            messagebox.showwarning("Warning", "Name cannot be empty!")
+
+    def cancel(self):
+        self.destroy()
+
 class WindowSelectionDialog(ctk.CTkToplevel):
     def __init__(self, parent, matches):
         super().__init__(parent)
@@ -497,4 +551,3 @@ class EdgeEditorDialog(ctk.CTkToplevel):
              
         except Exception as e:
             messagebox.showerror("Error", f"Invalid parameters: {e}")
-

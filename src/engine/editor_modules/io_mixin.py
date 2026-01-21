@@ -60,7 +60,19 @@ class IOMixin:
                 messagebox.showerror("Error", str(e))
 
     def export_to_zip(self):
-        filepath = filedialog.asksaveasfilename(defaultextension=".zip", filetypes=[("ZIP Files", "*.zip")])
+        from .dialogs import MacroNameDialog
+        
+        # Ask for name first
+        dlg = MacroNameDialog(self)
+        self.wait_window(dlg)
+        
+        if not dlg.result:
+            return
+            
+        macro_name = dlg.result
+        default_filename = f"{macro_name}.zip"
+
+        filepath = filedialog.asksaveasfilename(initialfile=default_filename, defaultextension=".zip", filetypes=[("ZIP Files", "*.zip")])
         if filepath:
             try:
                 # 1. Collect Used Assets
@@ -82,11 +94,11 @@ class IOMixin:
                 with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
                     # Add Graph JSON
                     graph_json = self.graph.to_json()
-                    zipf.writestr("graph.json", graph_json)
+                    zipf.writestr(f"{macro_name}.json", graph_json)
                     
                     # Add Layout JSON
                     layout_json = json.dumps(self.node_coords)
-                    zipf.writestr("graph.json.layout", layout_json)
+                    zipf.writestr(f"{macro_name}.json.layout", layout_json)
                     
                     # Add Used Assets
                     if os.path.exists(self.assets_dir):                        
