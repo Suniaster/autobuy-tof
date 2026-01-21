@@ -121,7 +121,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         self.grab_set()
         
         # Vars
-        self.trig_type_var = tk.StringVar(value="template_match")
+        self.trig_type_var = tk.StringVar(value="immediate")
         self.tmpl_var = tk.StringVar()
         self.invert_var = tk.BooleanVar()
         self.region_var = tk.StringVar(value="0,0,100,50")
@@ -180,7 +180,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                     self.x_var.set(str(ap.get("x", 0)))
                     self.y_var.set(str(ap.get("y", 0)))
         else:
-            self.action_var.set("click_match")
+            self.action_var.set("None")
 
     def create_collapsible_section(self, parent, title, collapsed=False):
         wrapper = ctk.CTkFrame(parent, fg_color="transparent")
