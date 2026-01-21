@@ -89,6 +89,53 @@ class GraphEditor(ctk.CTk):
         # UI Layout
         self.create_menu()
         self.create_canvas()
+        self.create_toolbar()
+        
+        self.node_coords = {}
+        self.temp_line = None
+        self.connecting_node = None
+        
+        # Hotkeys
+        self.bind("<Control-v>", self.on_paste_hotkey)
+        self.bind("<Delete>", lambda e: self.delete_selection())
+        
+        # Config Persistence
+        self.config_file = os.path.join(self.assets_dir, "editor_config.json")
+        self.load_config()
+        
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def load_config(self):
+        try:
+            if os.path.exists(self.config_file):
+                with open(self.config_file, "r") as f:
+                    cfg = json.load(f)
+                    geom = cfg.get("geometry", "1400x900")
+                    self.geometry(geom)
+        except Exception as e:
+            print(f"Failed to load config: {e}")
+
+    def save_config(self):
+        try:
+            cfg = {"geometry": self.geometry()}
+            with open(self.config_file, "w") as f:
+                json.dump(cfg, f, indent=4)
+        except Exception as e:
+            print(f"Failed to save config: {e}")
+
+    def on_close(self):
+        self.save_config()
+        self.destroy()
+        # Polling for UI updates from thread checks
+        self.check_execution_queue()
+
+    def check_execution_queue(self):
+        pass
+
+    def on_executor_state_change(self, node_id):
+        self.active_node_id = node_id
+        # Schedule update on main thread
+        self.after(0, self.refresh_canvas)
 
     def create_menu(self):
         menubar = tk.Menu(self)
