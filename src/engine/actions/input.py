@@ -97,20 +97,32 @@ class ClickPositionAction(Action):
         self.y = int(params.get("y", 0))
         self.modifiers = params.get("modifiers", "")
 
+        self.resolution_width = int(params.get("resolution_width", 0))
+        self.resolution_height = int(params.get("resolution_height", 0))
+
     def execute(self, context, executor):
         monitor = context.get('monitor')
         if not monitor: return
 
         # Calculate absolute position
         # Assuming params x,y are coordinates within the window captured (client rect)
-        # or relative to monitor top-left.
-        # Based on OCR logic, we work with screen coordinates.
-        # If the user provides x,y, are they relative to the game window or screen?
-        # Usually relative to game window is preferred if the window moves.
-        # But 'monitor' here describes the client rect of the window in screen coords.
         
-        final_x = monitor["left"] + self.x
-        final_y = monitor["top"] + self.y
+        target_x = self.x
+        target_y = self.y
+        
+        # Apply Scaling if resolution was saved
+        if self.resolution_width > 0 and self.resolution_height > 0:
+            current_w = monitor["width"]
+            current_h = monitor["height"]
+            
+            scale_x = current_w / self.resolution_width
+            scale_y = current_h / self.resolution_height
+            
+            target_x = int(self.x * scale_x)
+            target_y = int(self.y * scale_y)
+        
+        final_x = monitor["left"] + target_x
+        final_y = monitor["top"] + target_y
         
         keys_to_hold = [k.strip() for k in self.modifiers.split(",") if k.strip()]
         

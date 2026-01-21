@@ -58,12 +58,15 @@ class GraphExecutor:
 
         with mss.mss() as sct:
             while self.running:
+                # Check background mode setting from graph
+                bg_mode = self.graph.settings.get("background_mode", False)
+                
                 if self.paused:
                     time.sleep(0.1)
                     continue
 
                 # Capture Screen
-                img, sx, sy, monitor = capture_and_scale(sct, self.hwnd, self.mode)
+                img, sx, sy, monitor = capture_and_scale(sct, self.hwnd, self.mode, background_mode=bg_mode)
                 if img is None:
                     time.sleep(0.1)
                     continue

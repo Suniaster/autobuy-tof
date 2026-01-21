@@ -107,6 +107,7 @@ class Graph:
     def __init__(self):
         self.vertices: Dict[str, Vertex] = {}
         self.edges: List[Edge] = []
+        self.settings: Dict[str, Any] = {} # Graph-wide settings (e.g. background_mode)
 
     def add_vertex(self, vertex: Vertex):
         self.vertices[vertex.id] = vertex
@@ -126,7 +127,8 @@ class Graph:
     def to_json(self):
         return json.dumps({
             "vertices": [v.to_dict() for v in self.vertices.values()],
-            "edges": [e.to_dict() for e in self.edges]
+            "edges": [e.to_dict() for e in self.edges],
+            "settings": self.settings
         }, indent=2)
 
     def save_to_file(self, filename: str):
@@ -145,4 +147,6 @@ class Graph:
         for e_data in data.get("edges", []):
             graph.add_edge(Edge.from_dict(e_data))
             
+        graph.settings = data.get("settings", {})
+        
         return graph

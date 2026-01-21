@@ -7,6 +7,7 @@ from .base import Trigger
 class OCRWatchTrigger(Trigger):
     def __init__(self, params):
         self.region = params.get("region") # [x, y, w, h]
+        self.params = params
         self.condition = params.get("condition", ">")
         self.target_val = float(params.get("value", 0))
 
@@ -19,10 +20,80 @@ class OCRWatchTrigger(Trigger):
             print("Initializing EasyOCR (this may take a moment)...")
             executor.ocr_reader = easyocr.Reader(['en'], gpu=True) 
         
-        # Capture Region (Absolute Coords)
-        monitor = {"top": self.region[1], "left": self.region[0], "width": self.region[2], "height": self.region[3]}
-        sct_img = sct.grab(monitor)
-        img_np = np.array(sct_img)
+        # Capture Region (Absolute Coords or Relative)
+        monitor = context.get('monitor')
+        if not monitor: return False
+
+        res_w = self.params.get("resolution_width", 0)
+        res_h = self.params.get("resolution_height", 0)
+
+        region_x, region_y, region_w, region_h = self.region
+
+        final_monitor = {}
+
+        if res_w > 0 and res_h > 0:
+             # New Relative Logic with Scaling
+             current_w = monitor["width"]
+             current_h = monitor["height"]
+             
+             scale_x = current_w / res_w
+             scale_y = current_h / res_h
+             
+             t_x = int(region_x * scale_x)
+             t_y = int(region_y * scale_y)
+             t_w = int(region_w * scale_x)
+             t_h = int(region_h * scale_y)
+             
+             final_monitor = {
+                 "top": monitor["top"] + t_y,
+                 "left": monitor["left"] + t_x,
+                 "width": t_w,
+                 "height": t_h
+             }
+        else:
+             # Legacy Absolute Logic
+             final_monitor = {
+                 "top": region_y,
+                 "left": region_x,
+                 "width": region_w,
+                 "height": region_h
+             }
+        
+        # Clip to screen if needed, but MSS handles basic clipping usually.
+        # Ensure width/height > 0
+        if final_monitor["width"] <= 0 or final_monitor["height"] <= 0: return False
+
+        # If we have a captured image in context (Background Mode or Fast Mode), use it to crop
+        img_np = None
+        
+        if "img" in context and context["img"] is not None:
+            # Calculate offset
+            parent_monitor = context.get('monitor')
+            if parent_monitor:
+                offset_x = final_monitor["left"] - parent_monitor["left"]
+                offset_y = final_monitor["top"] - parent_monitor["top"]
+                
+                # Check bounds
+                h, w = context["img"].shape[:2]
+                
+                x1 = int(offset_x)
+                y1 = int(offset_y)
+                x2 = int(x1 + final_monitor["width"])
+                y2 = int(y1 + final_monitor["height"])
+                
+                # Clamp
+                x1 = max(0, x1); y1 = max(0, y1)
+                x2 = min(w, x2); y2 = min(h, y2)
+                
+                if x2 > x1 and y2 > y1:
+                    img_np = context["img"][y1:y2, x1:x2]
+                    img_np = cv2.cvtColor(img_np, cv2.COLOR_BGR2BGRA)
+
+        if img_np is None:
+             # Fallback to MSS
+             sct_img = sct.grab(final_monitor)
+             img_np = np.array(sct_img)
+
         img_gray = cv2.cvtColor(img_np, cv2.COLOR_BGRA2GRAY)
         
         try:
@@ -55,6 +126,7 @@ class OCRWatchTrigger(Trigger):
                 elif self.condition == ">=": return val >= self.target_val
                 elif self.condition == "<=": return val <= self.target_val
                 elif self.condition == "!=": return abs(val - self.target_val) > 0.001
+
         except Exception as e:
             print(f"OCR Process Error: {e}")
             
