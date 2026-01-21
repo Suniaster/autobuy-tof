@@ -11,6 +11,9 @@ class TemplateMatchTrigger(Trigger):
         img = context.get('img')
         scale = context.get('scale')
         
+        if not self.template_name:
+            return False
+
         tmpl = executor.load_template(self.template_name)
         if tmpl is None: return False
         

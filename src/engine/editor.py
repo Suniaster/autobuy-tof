@@ -420,26 +420,39 @@ class GraphEditor(ctk.CTk):
         filepath = filedialog.asksaveasfilename(defaultextension=".zip", filetypes=[("ZIP Files", "*.zip")])
         if filepath:
             try:
-                # 1. Create Zip File
+                # 1. Collect Used Assets
+                used_assets = set()
+                
+                # Check Vertices
+                for v in self.graph.vertices.values():
+                    if v.template:
+                        used_assets.add(v.template)
+                        
+                # Check Edges
+                for e in self.graph.edges:
+                    if e.trigger and e.trigger.type == "template_match":
+                         tmpl = e.trigger.params.get("template")
+                         if tmpl:
+                             used_assets.add(tmpl)
+
+                # 2. Create Zip File
                 with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    # 2. Add Graph JSON
+                    # Add Graph JSON
                     graph_json = self.graph.to_json()
                     zipf.writestr("graph.json", graph_json)
                     
-                    # 3. Add Layout JSON
+                    # Add Layout JSON
                     layout_json = json.dumps(self.node_coords)
                     zipf.writestr("graph.json.layout", layout_json)
                     
-                    # 4. Add Assets
-                    if os.path.exists(self.assets_dir):
-                        for root, dirs, files in os.walk(self.assets_dir):
-                            for file in files:
-                                # Create path relative to assets_dir
-                                abs_path = os.path.join(root, file)
-                                rel_path = os.path.relpath(abs_path, self.assets_dir)
-                                # Add to zip under 'assets/' folder
-                                zipf.write(abs_path, arcname=os.path.join("assets", rel_path))
-                                
+                    # Add Used Assets
+                    if os.path.exists(self.assets_dir):                        
+                        for asset_name in used_assets:
+                             abs_path = os.path.join(self.assets_dir, asset_name)
+                             if os.path.exists(abs_path) and os.path.isfile(abs_path):
+                                 zip_path = os.path.join("assets", "autobuyer", asset_name)
+                                 zipf.write(abs_path, arcname=zip_path)
+                                 
                 messagebox.showinfo("Exported", f"Successfully exported to {filepath}")
             except Exception as e:
                 messagebox.showerror("Export Error", str(e))

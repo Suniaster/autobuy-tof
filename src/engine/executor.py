@@ -28,6 +28,7 @@ class GraphExecutor:
         self.last_matched_template_name = None
 
     def load_template(self, filename):
+        if not filename: return None
         if filename in self.template_cache:
             return self.template_cache[filename]
         
