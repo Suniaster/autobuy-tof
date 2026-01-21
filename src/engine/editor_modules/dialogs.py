@@ -141,6 +141,8 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         
         self.conf_var = tk.StringVar(value="0.8")
         self.prio_var = tk.StringVar(value="0")
+        self.wait_before_var = tk.StringVar(value="0.0")
+        self.wait_after_var = tk.StringVar(value="0.0")
 
         self._init_vars_from_edge()
         self._init_ui()
@@ -179,6 +181,9 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                 if self.edge.action.type == "click_position":
                     self.x_var.set(str(ap.get("x", 0)))
                     self.y_var.set(str(ap.get("y", 0)))
+                
+                self.wait_before_var.set(str(ap.get("wait_before", 0.0)))
+                self.wait_after_var.set(str(ap.get("wait_after", 0.0)))
         else:
             self.action_var.set("None")
 
@@ -320,6 +325,13 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         ctk.CTkLabel(r1, text="Priority:").pack(side=tk.LEFT, padx=(20,0))
         ctk.CTkEntry(r1, textvariable=self.prio_var, width=60).pack(side=tk.LEFT, padx=5)
         
+        r2 = ctk.CTkFrame(sf, fg_color="transparent")
+        r2.pack(fill=tk.X, pady=5)
+        ctk.CTkLabel(r2, text="Wait Before (s):").pack(side=tk.LEFT)
+        ctk.CTkEntry(r2, textvariable=self.wait_before_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r2, text="Wait After (s):").pack(side=tk.LEFT, padx=(10,0))
+        ctk.CTkEntry(r2, textvariable=self.wait_after_var, width=60).pack(side=tk.LEFT, padx=5)
+        
         ctk.CTkButton(self, text="Save Changes", command=self.save, fg_color="#4CAF50", hover_color="#45a049", font=("Arial", 14, "bold")).pack(pady=20, fill=tk.X, padx=20, ipady=5)
         self.bind("<Control-v>", lambda e: self.paste_image())
 
@@ -444,6 +456,15 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                  a_params = {}
                  mods = [k for k, v in self.mod_vars.items() if v.get()]
                  if mods: a_params["modifiers"] = ", ".join(mods)
+                 
+                 # Add waits
+                 try:
+                     wb = float(self.wait_before_var.get())
+                     if wb > 0: a_params["wait_before"] = wb
+                     wa = float(self.wait_after_var.get())
+                     if wa > 0: a_params["wait_after"] = wa
+                 except ValueError:
+                     pass # Ignore invalid floats, treat as 0
                  
                  if act_type == "press_key":
                      a_params["key"] = self.key_var.get()

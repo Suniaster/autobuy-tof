@@ -94,7 +94,17 @@ class GraphExecutor:
                         
                         # Execute Action
                         if edge.action:
+                             # Wait Before
+                             wb = edge.action.params.get("wait_before", 0)
+                             if wb > 0:
+                                 time.sleep(wb)
+
                              execute_action(edge.action, context, self)
+
+                             # Wait After
+                             wa = edge.action.params.get("wait_after", 0)
+                             if wa > 0:
+                                 time.sleep(wa)
                         
                         # Transition (only if target exists)
                         if not edge.target_id:
