@@ -722,6 +722,8 @@ class GraphEditor(ctk.CTk):
                  x = edge.action.params.get("x", 0)
                  y = edge.action.params.get("y", 0)
                  label += f"\n[{x},{y}]"
+            elif atype == "buzzer":
+                label += f"\n[Buzzer]"
                  
         # Label offset
         if edge.source_id != edge.target_id:
@@ -1219,7 +1221,7 @@ class GraphEditor(ctk.CTk):
         if edge and edge.action: action_var.set(edge.action.type)
         elif edge is None: action_var.set("click_match") 
         
-        ctk.CTkOptionMenu(action_frame, variable=action_var, values=["None", "click_match", "press_key", "wait", "center_camera", "click_position"]).pack(fill=tk.X, pady=2)
+        ctk.CTkOptionMenu(action_frame, variable=action_var, values=["None", "click_match", "press_key", "wait", "center_camera", "click_position", "buzzer"]).pack(fill=tk.X, pady=2)
 
         options_container = ctk.CTkFrame(action_frame, fg_color="transparent")
         options_container.pack(fill=tk.X, pady=5)
@@ -1229,6 +1231,7 @@ class GraphEditor(ctk.CTk):
         mods_frame_container = ctk.CTkFrame(options_container, fg_color="transparent")
         pos_frame = ctk.CTkFrame(options_container, fg_color="transparent")
         wait_frame = ctk.CTkFrame(options_container, fg_color="transparent")
+        buzzer_frame = ctk.CTkFrame(options_container, fg_color="transparent")
         
         # -> Key + Duration
         ctk.CTkLabel(key_frame, text="Key:").pack(anchor=tk.W)
@@ -1247,6 +1250,19 @@ class GraphEditor(ctk.CTk):
         if edge and edge.action and edge.action.type == "wait":
              wait_dur_var.set(str(edge.action.params.get("duration", 0.5)))
         ctk.CTkEntry(wait_frame, textvariable=wait_dur_var).pack(fill=tk.X)
+
+        # -> Buzzer Action Fields
+        ctk.CTkLabel(buzzer_frame, text="Frequency (Hz):").pack(anchor=tk.W)
+        buzzer_freq_var = tk.StringVar(value="600")
+        if edge and edge.action and edge.action.type == "buzzer":
+             buzzer_freq_var.set(str(edge.action.params.get("frequency", 600)))
+        ctk.CTkEntry(buzzer_frame, textvariable=buzzer_freq_var).pack(fill=tk.X)
+        
+        ctk.CTkLabel(buzzer_frame, text="Duration (s):").pack(anchor=tk.W)
+        buzzer_dur_var = tk.StringVar(value="0.5")
+        if edge and edge.action and edge.action.type == "buzzer":
+             buzzer_dur_var.set(str(edge.action.params.get("duration", 0.5)))
+        ctk.CTkEntry(buzzer_frame, textvariable=buzzer_dur_var).pack(fill=tk.X)
 
         # -> Position Fields
         ctk.CTkLabel(pos_frame, text="Position (x, y):").pack(anchor=tk.W)
@@ -1294,6 +1310,7 @@ class GraphEditor(ctk.CTk):
             mods_frame_container.pack_forget()
             pos_frame.pack_forget()
             wait_frame.pack_forget()
+            buzzer_frame.pack_forget()
             val = action_var.get()
             if val == "press_key":
                 key_frame.pack(fill=tk.X, pady=2)
@@ -1305,6 +1322,8 @@ class GraphEditor(ctk.CTk):
                 mods_frame_container.pack(fill=tk.X, pady=2)
             elif val == "wait":
                 wait_frame.pack(fill=tk.X, pady=2)
+            elif val == "buzzer":
+                buzzer_frame.pack(fill=tk.X, pady=2)
         
         action_var.trace("w", update_act_ui)
         update_act_ui() 
@@ -1349,6 +1368,16 @@ class GraphEditor(ctk.CTk):
                 priority = int(prio_var.get())
             except:
                 priority = 0
+
+            try:
+                buzzer_freq = int(buzzer_freq_var.get())
+            except:
+                buzzer_freq = 600
+            
+            try:
+                buzzer_duration = float(buzzer_dur_var.get())
+            except:
+                buzzer_duration = 0.5
             
             selected_mods = [k for k, v in mod_vars.items() if v.get()]
             mods_str = ", ".join(selected_mods)
@@ -1387,6 +1416,10 @@ class GraphEditor(ctk.CTk):
                 
                 if act_type == "wait":
                     action_params["duration"] = wait_duration
+                
+                if act_type == "buzzer":
+                    action_params["frequency"] = buzzer_freq
+                    action_params["duration"] = buzzer_duration
                 
                 action = Action(act_type, action_params)
 

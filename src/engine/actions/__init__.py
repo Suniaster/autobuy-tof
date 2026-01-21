@@ -1,5 +1,6 @@
 from .input import ClickMatchAction, PressKeyAction, WaitAction, ClickPositionAction
 from .camera import CenterCameraAction
+from .system import BuzzerAction
 
 def execute_action(action_data, context, executor):
     handler = None
@@ -13,6 +14,8 @@ def execute_action(action_data, context, executor):
         handler = ClickPositionAction(action_data.params)    
     elif action_data.type == "center_camera":
         handler = CenterCameraAction(action_data.params)
+    elif action_data.type == "buzzer":
+        handler = BuzzerAction(action_data.params)
 
     if handler:
         handler.execute(context, executor)
