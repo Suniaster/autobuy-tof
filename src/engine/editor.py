@@ -1228,6 +1228,7 @@ class GraphEditor(ctk.CTk):
         key_frame = ctk.CTkFrame(options_container, fg_color="transparent")
         mods_frame_container = ctk.CTkFrame(options_container, fg_color="transparent")
         pos_frame = ctk.CTkFrame(options_container, fg_color="transparent")
+        wait_frame = ctk.CTkFrame(options_container, fg_color="transparent")
         
         # -> Key + Duration
         ctk.CTkLabel(key_frame, text="Key:").pack(anchor=tk.W)
@@ -1239,6 +1240,13 @@ class GraphEditor(ctk.CTk):
         dur_var = tk.StringVar(value="0.05")
         if edge and edge.action: dur_var.set(str(edge.action.params.get("duration", 0.05)))
         ctk.CTkEntry(key_frame, textvariable=dur_var).pack(fill=tk.X)
+
+        # -> Wait Action Fields
+        ctk.CTkLabel(wait_frame, text="Duration (s):").pack(anchor=tk.W)
+        wait_dur_var = tk.StringVar(value="0.5")
+        if edge and edge.action and edge.action.type == "wait":
+             wait_dur_var.set(str(edge.action.params.get("duration", 0.5)))
+        ctk.CTkEntry(wait_frame, textvariable=wait_dur_var).pack(fill=tk.X)
 
         # -> Position Fields
         ctk.CTkLabel(pos_frame, text="Position (x, y):").pack(anchor=tk.W)
@@ -1285,6 +1293,7 @@ class GraphEditor(ctk.CTk):
             key_frame.pack_forget()
             mods_frame_container.pack_forget()
             pos_frame.pack_forget()
+            wait_frame.pack_forget()
             val = action_var.get()
             if val == "press_key":
                 key_frame.pack(fill=tk.X, pady=2)
@@ -1294,6 +1303,8 @@ class GraphEditor(ctk.CTk):
             elif val == "click_position":
                 pos_frame.pack(fill=tk.X, pady=2)
                 mods_frame_container.pack(fill=tk.X, pady=2)
+            elif val == "wait":
+                wait_frame.pack(fill=tk.X, pady=2)
         
         action_var.trace("w", update_act_ui)
         update_act_ui() 
@@ -1329,6 +1340,11 @@ class GraphEditor(ctk.CTk):
                 duration = float(dur_var.get())
             except:
                 duration = 0.05
+
+            try:
+                wait_duration = float(wait_dur_var.get())
+            except:
+                 wait_duration = 0.5
             try:
                 priority = int(prio_var.get())
             except:
@@ -1368,6 +1384,9 @@ class GraphEditor(ctk.CTk):
                     except: y = 0
                     action_params["x"] = x
                     action_params["y"] = y
+                
+                if act_type == "wait":
+                    action_params["duration"] = wait_duration
                 
                 action = Action(act_type, action_params)
 

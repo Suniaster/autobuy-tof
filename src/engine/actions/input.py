@@ -1,7 +1,7 @@
 import time
 import keyboard
 import pyautogui
-from helper.input_utils import click_direct_input
+from helper.input_utils import click_direct_input, mouse_down_direct, mouse_up_direct
 from .base import Action
 
 class ClickMatchAction(Action):
@@ -65,8 +65,14 @@ class PressKeyAction(Action):
         if self.key.lower() == "left_click":
                 # Special handling for mouse click
                 try:
-                    click_direct_input()
-                    time.sleep(duration) 
+                    if duration > 0.1:
+                        # Hold logic
+                        mouse_down_direct()
+                        time.sleep(duration)
+                        mouse_up_direct()
+                    else:
+                        click_direct_input()
+                        time.sleep(duration) 
                 except Exception as e:
                     print(f"Error clicking: {e}")
         else:

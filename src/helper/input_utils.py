@@ -47,22 +47,27 @@ def move_mouse_relative(dx, dy):
     x = Input(ctypes.c_ulong(0), ii_)
     ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
 
-def click_direct_input():
-    """Performs a low-level DirectInput mouse click (Down + Sleep + Up)."""
+def mouse_down_direct():
+    """Performs a low-level DirectInput mouse DOWN."""
     extra = ctypes.c_ulong(0)
     ii_ = Input_I()
-    
-    # Mouse Down
     ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTDOWN, 0, ctypes.pointer(extra))
     x = Input(ctypes.c_ulong(0), ii_)
     ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
-    
-    time.sleep(0.08) # Slightly faster hold
-    
-    # Mouse Up
+
+def mouse_up_direct():
+    """Performs a low-level DirectInput mouse UP."""
+    extra = ctypes.c_ulong(0)
+    ii_ = Input_I()
     ii_.mi = MouseInput(0, 0, 0, MOUSEEVENTF_LEFTUP, 0, ctypes.pointer(extra))
     x = Input(ctypes.c_ulong(0), ii_)
     ctypes.windll.user32.SendInput(1, ctypes.pointer(x), ctypes.sizeof(x))
+
+def click_direct_input():
+    """Performs a low-level DirectInput mouse click (Down + Sleep + Up)."""
+    mouse_down_direct()
+    time.sleep(0.08)
+    mouse_up_direct()
 
 def is_admin():
     try:
