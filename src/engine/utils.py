@@ -7,9 +7,24 @@ import win32ui
 import win32con
 import ctypes
 
-# Base Resolution (What the templates were created on)
 BASE_WIDTH = 1920
 BASE_HEIGHT = 1080
+
+def find_all_game_windows(keyword):
+    """
+    Returns a list of (hwnd, title, rect_dict) for all visible windows matching keyword.
+    rect_dict is same format as get_client_rect_screen_coords
+    """
+    matches = []
+    def callback(hwnd, extra):
+        if win32gui.IsWindowVisible(hwnd):
+            title = win32gui.GetWindowText(hwnd)
+            if keyword in title:
+                rect = get_client_rect_screen_coords(hwnd)
+                if rect:
+                    matches.append((hwnd, title, rect))
+    win32gui.EnumWindows(callback, None)
+    return matches
 
 def get_client_rect_screen_coords(hwnd):
     try:

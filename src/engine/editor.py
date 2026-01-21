@@ -77,7 +77,8 @@ class GraphEditor(ctk.CTk):
         self.active_node_id = None
         self.is_running = False
         self.cached_ocr_reader = None
-        
+        self.game_hwnd = None # Explicitly selected window
+
         # Interaction State
         self.connecting_point = None 
         self.connecting_node = None # Legacy? Keep for now to be safe, but we might repurpose
@@ -88,70 +89,23 @@ class GraphEditor(ctk.CTk):
         # UI Layout
         self.create_menu()
         self.create_canvas()
-        self.create_toolbar()
-        
-        self.node_coords = {}
-        self.temp_line = None
-        self.connecting_node = None
-        
-        # Hotkeys
-        self.bind("<Control-v>", self.on_paste_hotkey)
-        self.bind("<Delete>", lambda e: self.delete_selection())
-        
-        # Config Persistence
-        self.config_file = os.path.join(self.assets_dir, "editor_config.json")
-        self.load_config()
-        
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
-
-    def load_config(self):
-        try:
-            if os.path.exists(self.config_file):
-                with open(self.config_file, "r") as f:
-                    cfg = json.load(f)
-                    geom = cfg.get("geometry", "1400x900")
-                    self.geometry(geom)
-        except Exception as e:
-            print(f"Failed to load config: {e}")
-
-    def save_config(self):
-        try:
-            cfg = {"geometry": self.geometry()}
-            with open(self.config_file, "w") as f:
-                json.dump(cfg, f, indent=4)
-        except Exception as e:
-            print(f"Failed to save config: {e}")
-
-    def on_close(self):
-        self.save_config()
-        self.destroy()
-
-        # Polling for UI updates from thread
-        self.check_execution_queue()
-
-    def check_execution_queue(self):
-        # In a real app we'd use a Queue, here we can simplistic polling if updating a var
-        # But actually, tkinter is not thread safe. 
-        # The callback from executor runs in thread. We must not touch UI there.
-        # We will update self.active_node_id and call refresh_canvas via after() ??
-        # No, refresh_canvas is UI.
-        # Better: use after loop to check if active_node_id changed? 
-        # Or have the callback scheduling an event.
-        pass
-
-    def on_executor_state_change(self, node_id):
-        self.active_node_id = node_id
-        # Schedule update on main thread
-        self.after(0, self.refresh_canvas)
 
     def create_menu(self):
         menubar = tk.Menu(self)
+        
+        # File Menu
         file_menu = tk.Menu(menubar, tearoff=0)
         file_menu.add_command(label="New", command=self.new_graph)
         file_menu.add_command(label="Open", command=self.load_graph)
         file_menu.add_command(label="Save", command=self.save_graph)
         file_menu.add_command(label="Export", command=self.export_to_zip)
         menubar.add_cascade(label="File", menu=file_menu)
+        
+        # Target Menu
+        target_menu = tk.Menu(menubar, tearoff=0)
+        target_menu.add_command(label="Select Game Window...", command=self.select_target_window)
+        menubar.add_cascade(label="Target", menu=target_menu)
+        
         self.config(menu=menubar)
 
     def create_toolbar(self):
@@ -192,15 +146,73 @@ class GraphEditor(ctk.CTk):
     def update_status(self, text):
         self.status_lbl.configure(text=text)
 
-    def find_game_window(self):
-        hwnd_found = None
-        def callback(h, extra):
-            nonlocal hwnd_found
-            if win32gui.IsWindowVisible(h):
-                if GAME_TITLE_KEYWORD in win32gui.GetWindowText(h):
-                    hwnd_found = h
-        win32gui.EnumWindows(callback, None)
-        return hwnd_found
+    # Updated to resolve_game_window to handle multiple instances
+    def resolve_game_window(self, force_ask=False):
+        from .utils import find_all_game_windows
+        
+        matches = find_all_game_windows(GAME_TITLE_KEYWORD)
+        
+        if not matches:
+             return None
+        
+        # If user explicitly asks, show dialog even if only 1 match
+        if len(matches) == 1 and not force_ask:
+            return matches[0][0] # Return HWND
+        
+        # Multiple windows found OR forced ask
+        return self.ask_window_selection_dialog(matches)
+
+    def select_target_window(self):
+        hwnd = self.resolve_game_window(force_ask=True)
+        if hwnd:
+            self.game_hwnd = hwnd
+            match_found = False
+            # Try to get title for confirmation
+            try:
+                title = win32gui.GetWindowText(hwnd)
+                messagebox.showinfo("Target Selected", f"Target set to:\n{title}\n(HWND: {hwnd})")
+            except:
+                messagebox.showinfo("Target Selected", f"Target set to HWND: {hwnd}")
+        else:
+            # If nothing returned (e.g. cancel or no windows), clear? or keep old?
+            # If no windows found loops back out, but cancel returns None
+            pass
+
+    def ask_window_selection_dialog(self, matches):
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Select Game Window")
+        dialog.geometry("500x400")
+        dialog.transient(self)
+        dialog.grab_set() # Modal
+        
+        selected_hwnd = tk.StringVar(value="")
+        
+        ctk.CTkLabel(dialog, text="Multiple game windows found. Please select one:", font=("Segoe UI", 14, "bold")).pack(pady=10)
+        
+        scroll = ctk.CTkScrollableFrame(dialog, width=450, height=250)
+        scroll.pack(pady=10, padx=10)
+        
+        def on_select(hwnd):
+            selected_hwnd.set(str(hwnd))
+            dialog.destroy()
+            
+        for i, (hwnd, title, rect) in enumerate(matches):
+            btn_text = f"Window {i+1}: {title}\nres: {rect['width']}x{rect['height']} pos: ({rect['left']},{rect['top']})"
+            ctk.CTkButton(scroll, text=btn_text, command=lambda h=hwnd: on_select(h), 
+                          anchor="w", fg_color=THEME["node_bg"], hover_color=THEME["node_border"]).pack(fill="x", pady=2)
+            
+        # Cancel handler
+        def on_cancel():
+            dialog.destroy()
+        
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+        
+        self.wait_window(dialog)
+        
+        res = selected_hwnd.get()
+        if res:
+            return int(res)
+        return None
 
     def toggle_run(self):
         if self.is_running:
@@ -222,10 +234,18 @@ class GraphEditor(ctk.CTk):
             
         else:
             # START
-            hwnd = self.find_game_window()
+            hwnd = None
+            if self.game_hwnd and win32gui.IsWindow(self.game_hwnd):
+                # Verify it's still visible/valid?
+                hwnd = self.game_hwnd
+            else:
+                hwnd = self.resolve_game_window()
+                
             if not hwnd:
                 messagebox.showerror("Error", f"Game window '{GAME_TITLE_KEYWORD}' not found!")
                 return
+                
+            self.game_hwnd = hwnd # Remember for session
 
             self.is_running = True
             self.btn_run.configure(text="⏹", fg_color=THEME["accent_rose"])

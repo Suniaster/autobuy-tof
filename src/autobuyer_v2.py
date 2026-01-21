@@ -73,20 +73,41 @@ def main():
         print(f"Failed to load graph: {e}")
         return
 
-    from engine.utils import get_client_rect_screen_coords
+    from engine.utils import get_client_rect_screen_coords, find_all_game_windows
     import win32gui
 
     print("Waiting for game window...")
+    print("Waiting for game window...")
     hwnd = None
+    
+    # Wait until at least one window is found
     while not hwnd:
-        def callback(h, extra):
-            nonlocal hwnd
-            if win32gui.IsWindowVisible(h):
-                if GAME_TITLE_KEYWORD in win32gui.GetWindowText(h):
-                    hwnd = h
-        win32gui.EnumWindows(callback, None)
-        if not hwnd:
-            time.sleep(1)
+        windows = find_all_game_windows(GAME_TITLE_KEYWORD)
+        if not windows:
+             time.sleep(1)
+             continue
+        
+        if len(windows) == 1:
+            hwnd = windows[0][0]
+        else:
+            print(f"\nMultiple windows found for '{GAME_TITLE_KEYWORD}':")
+            for i, (h, title, rect) in enumerate(windows):
+                print(f"{i+1}: {title} (HWND: {h}) - {rect['width']}x{rect['height']} at ({rect['left']},{rect['top']})")
+            
+            while True:
+                try:
+                    val = input("Select Window Index (1-N): ").strip()
+                    idx = int(val) - 1
+                    if 0 <= idx < len(windows):
+                        hwnd = windows[idx][0]
+                        break
+                    else:
+                        print("Invalid index.")
+                except ValueError:
+                    # If user just hits enter or invalid input, refresh list? 
+                    # For now just loop prompt.
+                    pass
+
 
     print(f"Game found: {hwnd}")
     
