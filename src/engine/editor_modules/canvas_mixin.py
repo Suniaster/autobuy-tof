@@ -215,7 +215,7 @@ class CanvasMixin:
                          points = [nx+self.node_width/2, ny+self.node_height/2, wx, wy]
                      else: points.extend([wx, wy])
 
-                new_edge = Edge(source_id, target_id, Trigger("template_match"), Action("None"), points=points)
+                new_edge = Edge(source_id, target_id, Trigger("immediate"), Action("None"), points=points)
                 self.graph.add_edge(new_edge)
                 
                 self.creating_edge = False
