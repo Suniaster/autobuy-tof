@@ -1,5 +1,6 @@
 from .template import TemplateMatchTrigger
 from .ocr import OCRWatchTrigger
+from .color import ColorMatchTrigger
 
 def check_trigger(trigger_data, context, executor):
     handler = None
@@ -7,6 +8,8 @@ def check_trigger(trigger_data, context, executor):
         handler = TemplateMatchTrigger(trigger_data.params)
     elif trigger_data.type == "ocr_watch":
         handler = OCRWatchTrigger(trigger_data.params)
+    elif trigger_data.type == "color_match":
+        handler = ColorMatchTrigger(trigger_data.params)
     elif trigger_data.type == "immediate":
         return True
     elif trigger_data.type == "wait":

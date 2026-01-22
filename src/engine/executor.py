@@ -119,7 +119,9 @@ class GraphExecutor:
                             if self.on_state_change:
                                 self.on_state_change(self.current_vertex.id)
                                 
-                            time.sleep(0.2) # Debounce
+                            # time.sleep(0.2) # Removed for immediate response
+                            # Small yield to prevent complete CPU hog if immediate loop?
+                            # No, allow fast execution. 
                             break
                 
                 if not transition_happened:
@@ -132,7 +134,9 @@ class GraphExecutor:
                              self.last_transition_time = time.time()
                              if self.on_state_change:
                                 self.on_state_change(self.current_vertex.id)
-                    time.sleep(0.5)
+                    
+                    # Idle sleep (reduced from 0.5 for responsiveness)
+                    time.sleep(0.01)
 
     def scan_for_state(self, img, scale):
         # Imports needed for scan

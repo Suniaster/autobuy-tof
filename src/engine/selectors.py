@@ -1,6 +1,8 @@
 
 import tkinter as tk
 import customtkinter as ctk
+import pyautogui
+import time
 
 class RegionSelector(ctk.CTkToplevel):
     def __init__(self, parent, callback):
@@ -79,4 +81,51 @@ class PointSelector(ctk.CTkToplevel):
         
     def on_click(self, event):
         self.callback([event.x, event.y])
+        self.destroy()
+
+class ColorPointSelector(ctk.CTkToplevel):
+    """
+    Selects a point and captures the color at that point (without overlay interference).
+    """
+    def __init__(self, parent, callback):
+        super().__init__(parent)
+        self.callback = callback
+        self.attributes('-fullscreen', True)
+        self.attributes('-topmost', True)
+        self.attributes('-alpha', 0.3)
+        self.configure(bg="black")
+        
+        self.canvas = tk.Canvas(self, cursor="crosshair", bg="black", highlightthickness=0)
+        self.canvas.pack(fill=tk.BOTH, expand=True)
+        
+        self.canvas.bind("<Button-1>", self.on_click)
+        self.bind("<Escape>", lambda e: self.destroy())
+
+        self.wait_visibility(self)
+        self.attributes('-alpha', 0.3)
+        self.focus_force()
+        self.grab_set()
+        
+    def on_click(self, event):
+        x, y = event.x_root, event.y_root
+        
+        # 1. Hide window completely to reveal underlying color
+        self.attributes('-alpha', 0.0)
+        self.withdraw()
+        self.update_idletasks()
+        time.sleep(0.1) # Brief pause to ensure composition update
+        
+        try:
+            # 2. Capture Pixel
+            # pyautogui.pixel might be slow or fail on some multi-monitors, but worth a try.
+            # returns RGB tuple
+            color = pyautogui.pixel(x, y)
+            
+            # Callback: [x, y, r, g, b]
+            self.callback([x, y, color[0], color[1], color[2]])
+            
+        except Exception as e:
+            print(f"Color Pick Error: {e}")
+            self.callback(None)
+            
         self.destroy()

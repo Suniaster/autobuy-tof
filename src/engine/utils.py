@@ -39,50 +39,17 @@ def get_client_rect_screen_coords(hwnd):
         return None
 
 def capture_window_background(hwnd):
-    try:
-        # 1. Try Client Only Capture (Windows 8.1+)
-        # Use GetClientRect for dimensions so bitmap matches exactly
-        left, top, right, bottom = win32gui.GetClientRect(hwnd)
-        width = right - left
-        height = bottom - top
-        
-        if width <= 0 or height <= 0: return None
-
-        hwndDC = win32gui.GetWindowDC(hwnd)
-        mfcDC  = win32ui.CreateDCFromHandle(hwndDC)
-        saveDC = mfcDC.CreateCompatibleDC()
-        
-        saveBitMap = win32ui.CreateBitmap()
-        saveBitMap.CreateCompatibleBitmap(mfcDC, width, height)
-        saveDC.SelectObject(saveBitMap)
+    hwndDC = None
+    mfcDC = None
+    saveDC = None
+    saveBitMap = None
     
-        # Determine dimensions
-        # If minimized, GetWindowRect gives tiny coords. We need restored size.
-        # For now, let's assume it works if not minimized or if we can get size.
-        # (TODO: Handle Minimized Size via GetWindowPlacement if needed later)
-        if win32gui.IsIconic(hwnd):
-             # If minimized, PrintWindow might still work if we give it the right size.
-             # Try to get placement
-             import win32api
-             try:
-                 place = win32gui.GetWindowPlacement(hwnd)
-                 rect = place[4] # rcNormalPosition
-                 w_width = rect[2] - rect[0]
-                 w_height = rect[3] - rect[1]
-
-
-             except:
-                 return None
-                 
-             # Fallback to standard rect if calculation failed or complex
-             if w_width <= 0:
-                  left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-                  w_width = right - left
-                  w_height = bottom - top
-        else:
-             w_left, w_top, w_right, w_bottom = win32gui.GetWindowRect(hwnd)
-             w_width = w_right - w_left
-             w_height = w_bottom - w_top
+    try:
+        # 1. Capture Full Window (More reliable for games than ClientOnly)
+        # We need the full window dimensions to create the compatible bitmap
+        w_left, w_top, w_right, w_bottom = win32gui.GetWindowRect(hwnd)
+        w_width = w_right - w_left
+        w_height = w_bottom - w_top
         
         if w_width <= 0 or w_height <= 0: return None
 
@@ -94,8 +61,10 @@ def capture_window_background(hwnd):
         saveBitMap.CreateCompatibleBitmap(mfcDC, w_width, w_height)
         saveDC.SelectObject(saveBitMap)
         
-        # Use PW_RENDERFULLCONTENT (2)
-        result = ctypes.windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), 2)
+        # Use PW_RENDERFULLCONTENT (2) which includes the window frame/titlebar
+        # This is often necessary for hardware accelerated windows that return black otherwise
+        PW_RENDERFULLCONTENT = 2
+        result = ctypes.windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), PW_RENDERFULLCONTENT)
         
         img_final = None
         
@@ -106,68 +75,47 @@ def capture_window_background(hwnd):
              img.shape = (bmpinfo['bmHeight'], bmpinfo['bmWidth'], 4)
              img_full = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
              
-             # Calculate Offset for Cropping
-             # We need the border sizes.
-             # If window is restored, we can compare WindowRect and ClientRect
+             # 2. Crop to Client Area
+             # We captured the whole window, but we only want the game content (Client Area).
+             # We need to calculate the offset of the Client Area relative to the Window.
              
-             # Get Border Info
-             # Use GetSystemMetrics or arithmetic
-             
-             # We need to know where Client Top-Left is relative to Window Top-Left
              point = win32gui.ClientToScreen(hwnd, (0,0))
-             client_x, client_y = point
+             client_screen_x, client_screen_y = point
              
-             w_rect = win32gui.GetWindowRect(hwnd)
-             win_x, win_y = w_rect[:2]
+             # WindowRect is also in Screen Coords
+             offset_x = client_screen_x - w_left
+             offset_y = client_screen_y - w_top
              
-             # If minimized, these might be off.
-             if win32gui.IsIconic(hwnd):
-                 # Guess standard borders?
-                 # roughly 8, 31 for Win10?
-                 offset_x = 8
-                 offset_y = 31 # Title bar
-                 # Also need client size
-                 _, _, r, b = win32gui.GetClientRect(hwnd)
-                 c_w = r
-                 c_h = b
-             else:
-                 offset_x = client_x - win_x
-                 offset_y = client_y - win_y
-                 _, _, r, b = win32gui.GetClientRect(hwnd)
-                 c_w = r
-                 c_h = b
+             # Get confirmed Client Size
+             _, _, c_right, c_bottom = win32gui.GetClientRect(hwnd)
+             c_width = c_right
+             c_height = c_bottom
              
-             # Sanity check
-             if c_w > 0 and c_h > 0 and offset_x >= 0 and offset_y >= 0:
-                 # Ensure we don't go out of bounds (due to shadow margin etc)
-                 end_x = min(img_full.shape[1], offset_x + c_w)
-                 end_y = min(img_full.shape[0], offset_y + c_h)
+             # Sanity check and crop
+             if c_width > 0 and c_height > 0 and offset_x >= 0 and offset_y >= 0:
+                 end_x = min(img_full.shape[1], offset_x + c_width)
+                 end_y = min(img_full.shape[0], offset_y + c_height)
                  
-                 img_final = img_full[offset_y:end_y, offset_x:end_x]
+                 # Ensure we don't slice with invalid coords
+                 if end_x > offset_x and end_y > offset_y:
+                    img_final = img_full[offset_y:end_y, offset_x:end_x]
+                 else:
+                    img_final = img_full # Fallback
              else:
                  img_final = img_full
 
-        win32gui.DeleteObject(saveBitMap.GetHandle())
-        saveDC.DeleteDC()
-        mfcDC.DeleteDC()
-        win32gui.ReleaseDC(hwnd, hwndDC)
-        
         return img_final
 
     except Exception as e:
         print(f"Background Capture Error: {e}")
         return None
-
-        win32gui.DeleteObject(saveBitMap.GetHandle())
-        saveDC.DeleteDC()
-        mfcDC.DeleteDC()
-        win32gui.ReleaseDC(hwnd, hwndDC)
         
-        return img_final
-
-    except Exception as e:
-        print(f"Background Capture Error: {e}")
-        return None
+    finally:
+        # cleanup
+        if saveBitMap: win32gui.DeleteObject(saveBitMap.GetHandle())
+        if saveDC: saveDC.DeleteDC()
+        if mfcDC: mfcDC.DeleteDC()
+        if hwndDC: win32gui.ReleaseDC(hwnd, hwndDC)
 
 def capture_and_scale(sct, hwnd, mode=1, background_mode=False):
     capture_method = "screen"

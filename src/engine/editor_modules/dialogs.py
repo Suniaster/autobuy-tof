@@ -5,7 +5,7 @@ import win32gui
 import uuid
 import os
 
-from ..selectors import RegionSelector, PointSelector
+from ..selectors import RegionSelector, PointSelector, ColorPointSelector
 from .defs import THEME
 from ..model import Trigger, Action, Edge, Vertex
 
@@ -169,7 +169,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         self.points = points
         
         self.title("Edge Properties")
-        self.geometry("500x800")
+        self.geometry("500x850") # Slightly taller
         self.resizable(False, False)
         self.transient(parent)
         self.grab_set()
@@ -182,6 +182,12 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         self.cond_var = tk.StringVar(value=">")
         self.val_var = tk.StringVar(value="0")
         self.ocr_interval_var = tk.StringVar(value="1.0")
+        
+        # Color Match Vars
+        self.color_pos_x_var = tk.StringVar(value="0")
+        self.color_pos_y_var = tk.StringVar(value="0")
+        self.color_rgb_var = tk.StringVar(value="255,255,255")
+        self.color_tol_var = tk.StringVar(value="10")
         
         self.action_var = tk.StringVar(value="None")
         self.key_var = tk.StringVar()
@@ -218,6 +224,13 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                 self.cond_var.set(p.get("condition", ">"))
                 self.val_var.set(p.get("value", "0"))
                 self.ocr_interval_var.set(str(p.get("interval", 1.0)))
+                
+            elif self.edge.trigger.type == "color_match":
+                self.color_pos_x_var.set(str(p.get("x", 0)))
+                self.color_pos_y_var.set(str(p.get("y", 0)))
+                rgb = p.get("rgb", [0,0,0])
+                self.color_rgb_var.set(f"{rgb[0]},{rgb[1]},{rgb[2]}")
+                self.color_tol_var.set(str(p.get("tolerance", 10)))
                 
             self.prio_var.set(str(self.edge.priority))
             
@@ -276,7 +289,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         to.pack(fill=tk.X, padx=10, pady=5)
         
         ctk.CTkLabel(tf, text="Type:").pack(anchor=tk.W)
-        ctk.CTkOptionMenu(tf, variable=self.trig_type_var, values=["template_match", "ocr_watch", "immediate"]).pack(fill=tk.X, pady=2)
+        ctk.CTkOptionMenu(tf, variable=self.trig_type_var, values=["template_match", "ocr_watch", "color_match", "immediate"]).pack(fill=tk.X, pady=2)
         
         self.trig_opts = ctk.CTkFrame(tf, fg_color="transparent")
         self.trig_opts.pack(fill=tk.X, pady=5)
@@ -312,6 +325,31 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         ctk.CTkLabel(self.ocr_frame, text="Parse Interval (s):").pack(anchor=tk.W)
         ctk.CTkEntry(self.ocr_frame, textvariable=self.ocr_interval_var).pack(fill=tk.X)
         
+        # Color Match UI
+        self.color_frame = ctk.CTkFrame(self.trig_opts, fg_color="transparent")
+        ctk.CTkLabel(self.color_frame, text="Target Position (x, y):").pack(anchor=tk.W)
+        col_row1 = ctk.CTkFrame(self.color_frame, fg_color="transparent")
+        col_row1.pack(fill=tk.X)
+        ctk.CTkEntry(col_row1, textvariable=self.color_pos_x_var, width=80).pack(side=tk.LEFT, padx=2)
+        ctk.CTkLabel(col_row1, text=",").pack(side=tk.LEFT)
+        ctk.CTkEntry(col_row1, textvariable=self.color_pos_y_var, width=80).pack(side=tk.LEFT, padx=2)
+        ctk.CTkButton(col_row1, text="Pick Color/Pos", command=self.pick_color, width=100).pack(side=tk.LEFT, padx=5)
+        
+        ctk.CTkLabel(self.color_frame, text="Target RGB (r, g, b):").pack(anchor=tk.W)
+        col_row2 = ctk.CTkFrame(self.color_frame, fg_color="transparent")
+        col_row2.pack(fill=tk.X)
+        ctk.CTkEntry(col_row2, textvariable=self.color_rgb_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
+        # Preview Swatch
+        self.color_preview = ctk.CTkFrame(col_row2, width=30, height=30, corner_radius=5)
+        self.color_preview.pack(side=tk.LEFT, padx=10)
+        
+        # Trace change to update preview
+        self.color_rgb_var.trace("w", self.update_color_preview)
+        self.update_color_preview() # Init
+        
+        ctk.CTkLabel(self.color_frame, text="Tolerance:").pack(anchor=tk.W)
+        ctk.CTkEntry(self.color_frame, textvariable=self.color_tol_var).pack(fill=tk.X)
+
         self.trig_type_var.trace("w", self.update_trig_ui)
         
         # Action
@@ -392,9 +430,232 @@ class EdgeEditorDialog(ctk.CTkToplevel):
     def update_trig_ui(self, *args):
         self.tmpl_frame.pack_forget()
         self.ocr_frame.pack_forget()
+        self.color_frame.pack_forget()
         t = self.trig_type_var.get()
         if t == "template_match": self.tmpl_frame.pack(fill=tk.X)
         elif t == "ocr_watch": self.ocr_frame.pack(fill=tk.X)
+        elif t == "color_match": self.color_frame.pack(fill=tk.X)
+
+    def update_act_ui(self, *args):
+        self.key_frame.pack_forget()
+        self.mods_frame_container.pack_forget()
+        self.pos_frame.pack_forget()
+        self.wait_frame.pack_forget()
+        self.buzzer_frame.pack_forget()
+        
+        val = self.action_var.get()
+        if val == "press_key":
+            self.key_frame.pack(fill=tk.X, pady=2)
+            self.mods_frame_container.pack(fill=tk.X, pady=2)
+        elif val == "click_match":
+            self.mods_frame_container.pack(fill=tk.X, pady=2)
+        elif val == "click_position":
+            self.pos_frame.pack(fill=tk.X, pady=2)
+            self.mods_frame_container.pack(fill=tk.X, pady=2)
+        elif val == "wait":
+            self.wait_frame.pack(fill=tk.X, pady=2)
+        elif val == "buzzer":
+            self.buzzer_frame.pack(fill=tk.X, pady=2)
+            
+    def update_preview(self, *args):
+        fname = self.tmpl_var.get()
+        if hasattr(self.parent, 'load_preview_image'):
+             photo = self.parent.load_preview_image(fname)
+             if photo:
+                 self.preview_label.configure(image=photo, text="")
+                 self.preview_label.image = photo 
+             else:
+                 self.preview_label.configure(image=None, text="(No Image)" if fname else "")
+
+    def update_color_preview(self, *args):
+        try:
+            rgb_str = self.color_rgb_var.get()
+            parts = [int(p.strip()) for p in rgb_str.split(",")]
+            if len(parts) == 3:
+                # Handle possible invalid RGB ranges gracefully
+                r = max(0, min(255, parts[0]))
+                g = max(0, min(255, parts[1]))
+                b = max(0, min(255, parts[2]))
+                
+                hex_col = f"#{r:02x}{g:02x}{b:02x}"
+                self.color_preview.configure(fg_color=hex_col)
+        except:
+             # Just ignore parse errors, keep last valid or default
+             pass
+
+    def paste_image(self):
+        if hasattr(self.parent, 'save_clipboard_image'):
+            filename = self.parent.save_clipboard_image()
+            if filename: self.tmpl_var.set(filename)
+
+    def select_region(self):
+        hwnd = self.parent.resolve_game_window()
+        self.parent.game_hwnd = hwnd # Sync back
+        
+        self.attributes('-alpha', 0.0)
+        def on_select(rect):
+            self.attributes('-alpha', 1.0)
+            final_rect = list(rect)
+            if hwnd and win32gui.IsWindow(hwnd):
+                try:
+                    from ..utils import get_client_rect_screen_coords
+                    win_rect = get_client_rect_screen_coords(hwnd)
+                    if win_rect:
+                        final_rect[0] = rect[0] - win_rect['left']
+                        final_rect[1] = rect[1] - win_rect['top']
+                except: pass
+            self.region_var.set(f"{final_rect[0]},{final_rect[1]},{final_rect[2]},{final_rect[3]}")
+            self.deiconify()
+        RegionSelector(self.parent, on_select) # Use parent as master for Selector usually, or self? Selector usually is fullscreen.
+
+    def select_point(self):
+        hwnd = self.parent.resolve_game_window()
+        self.parent.game_hwnd = hwnd
+        self.attributes('-alpha', 0.0)
+        def on_point(pt):
+            self.attributes('-alpha', 1.0)
+            final_pt = list(pt)
+            if hwnd and win32gui.IsWindow(hwnd):
+                try:
+                    from ..utils import get_client_rect_screen_coords
+                    win_rect = get_client_rect_screen_coords(hwnd)
+                    if win_rect:
+                        final_pt[0] = pt[0] - win_rect['left']
+                        final_pt[1] = pt[1] - win_rect['top']
+                except: pass
+            self.x_var.set(str(final_pt[0]))
+            self.y_var.set(str(final_pt[1]))
+            self.deiconify()
+        PointSelector(self.parent, on_point)
+
+    def pick_color(self):
+        hwnd = self.parent.resolve_game_window()
+        self.parent.game_hwnd = hwnd # Sync
+        
+        self.attributes('-alpha', 0.0)
+        def on_pick(data):
+            self.attributes('-alpha', 1.0)
+            if data:
+                # [x, y, r, g, b]
+                px, py, r, g, b = data
+                
+                # Check Client Rect
+                if hwnd and win32gui.IsWindow(hwnd):
+                    try:
+                        from ..utils import get_client_rect_screen_coords
+                        win_rect = get_client_rect_screen_coords(hwnd)
+                        if win_rect:
+                            px = px - win_rect['left']
+                            py = py - win_rect['top']
+                    except: pass
+                
+                self.color_pos_x_var.set(str(px))
+                self.color_pos_y_var.set(str(py))
+                self.color_rgb_var.set(f"{r},{g},{b}")
+                
+            self.deiconify()
+            
+        ColorPointSelector(self.parent, on_pick)
+
+    def save(self):
+        # Validation and Save
+        try:
+             # Capture Window Resolution
+             res_w, res_h = 1920, 1080
+             target_hwnd = self.parent.game_hwnd
+             if target_hwnd and win32gui.IsWindow(target_hwnd):
+                 rect = win32gui.GetClientRect(target_hwnd)
+                 res_w = rect[2] - rect[0]
+                 res_h = rect[3] - rect[1]
+             
+             trig_type = self.trig_type_var.get()
+             t_params = {}
+             if trig_type == "template_match":
+                 t_params = {
+                     "template": self.tmpl_var.get(),
+                     "threshold": float(self.conf_var.get()),
+                     "invert": self.invert_var.get()
+                 }
+             elif trig_type == "ocr_watch":
+                 r = [int(x) for x in self.region_var.get().split(",")]
+                 t_params = {
+                     "region": r,
+                     "condition": self.cond_var.get(),
+                     "value": float(self.val_var.get()),
+                     "interval": float(self.ocr_interval_var.get()),
+                     "resolution_width": res_w,
+                     "resolution_height": res_h
+                 }
+             elif trig_type == "color_match":
+                 rgb_str = self.color_rgb_var.get()
+                 rgb = [int(x.strip()) for x in rgb_str.split(",")]
+                 t_params = {
+                     "x": int(self.color_pos_x_var.get()),
+                     "y": int(self.color_pos_y_var.get()),
+                     "rgb": rgb,
+                     "tolerance": int(self.color_tol_var.get()),
+                     "resolution_width": res_w,
+                     "resolution_height": res_h
+                 }
+                 
+             trigger = Trigger(trig_type, t_params)
+             
+             act_type = self.action_var.get()
+             action = None
+             if act_type != "None":
+                 a_params = {}
+                 mods = [k for k, v in self.mod_vars.items() if v.get()]
+                 if mods: a_params["modifiers"] = ", ".join(mods)
+                 
+                 # Add waits
+                 try:
+                     wb = float(self.wait_before_var.get())
+                     if wb > 0: a_params["wait_before"] = wb
+                     wa = float(self.wait_after_var.get())
+                     if wa > 0: a_params["wait_after"] = wa
+                 except ValueError:
+                     pass # Ignore invalid floats, treat as 0
+                 
+                 if act_type == "press_key":
+                     a_params["key"] = self.key_var.get()
+                     a_params["duration"] = float(self.dur_var.get())
+                 elif act_type == "click_position":
+                     a_params["x"] = int(self.x_var.get())
+                     a_params["y"] = int(self.y_var.get())
+                     a_params["resolution_width"] = res_w
+                     a_params["resolution_height"] = res_h
+                 elif act_type == "wait":
+                     a_params["duration"] = float(self.wait_dur_var.get())
+                 elif act_type == "buzzer":
+                     a_params["frequency"] = int(self.buzzer_freq_var.get())
+                     a_params["duration"] = float(self.buzzer_dur_var.get())
+                     
+                 action = Action(act_type, a_params)
+             
+             prio = int(self.prio_var.get())
+             
+             if self.edge:
+                 self.edge.trigger = trigger
+                 self.edge.action = action
+                 self.edge.priority = prio
+             else:
+                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points)
+                 self.parent.graph.add_edge(new_edge)
+                 
+             self.destroy()
+             self.parent.refresh_canvas()
+             
+        except Exception as e:
+            messagebox.showerror("Error", f"Invalid parameters: {e}")
+
+    def update_trig_ui(self, *args):
+        self.tmpl_frame.pack_forget()
+        self.ocr_frame.pack_forget()
+        self.color_frame.pack_forget()
+        t = self.trig_type_var.get()
+        if t == "template_match": self.tmpl_frame.pack(fill=tk.X)
+        elif t == "ocr_watch": self.ocr_frame.pack(fill=tk.X)
+        elif t == "color_match": self.color_frame.pack(fill=tk.X)
 
     def update_act_ui(self, *args):
         self.key_frame.pack_forget()
@@ -472,6 +733,35 @@ class EdgeEditorDialog(ctk.CTkToplevel):
             self.deiconify()
         PointSelector(self.parent, on_point)
 
+    def pick_color(self):
+        hwnd = self.parent.resolve_game_window()
+        self.parent.game_hwnd = hwnd # Sync
+        
+        self.attributes('-alpha', 0.0)
+        def on_pick(data):
+            self.attributes('-alpha', 1.0)
+            if data:
+                # [x, y, r, g, b]
+                px, py, r, g, b = data
+                
+                # Check Client Rect
+                if hwnd and win32gui.IsWindow(hwnd):
+                    try:
+                        from ..utils import get_client_rect_screen_coords
+                        win_rect = get_client_rect_screen_coords(hwnd)
+                        if win_rect:
+                            px = px - win_rect['left']
+                            py = py - win_rect['top']
+                    except: pass
+                
+                self.color_pos_x_var.set(str(px))
+                self.color_pos_y_var.set(str(py))
+                self.color_rgb_var.set(f"{r},{g},{b}")
+                
+            self.deiconify()
+            
+        ColorPointSelector(self.parent, on_pick)
+
     def save(self):
         # Validation and Save
         try:
@@ -498,6 +788,17 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                      "condition": self.cond_var.get(),
                      "value": float(self.val_var.get()),
                      "interval": float(self.ocr_interval_var.get()),
+                     "resolution_width": res_w,
+                     "resolution_height": res_h
+                 }
+             elif trig_type == "color_match":
+                 rgb_str = self.color_rgb_var.get()
+                 rgb = [int(x.strip()) for x in rgb_str.split(",")]
+                 t_params = {
+                     "x": int(self.color_pos_x_var.get()),
+                     "y": int(self.color_pos_y_var.get()),
+                     "rgb": rgb,
+                     "tolerance": int(self.color_tol_var.get()),
                      "resolution_width": res_w,
                      "resolution_height": res_h
                  }
