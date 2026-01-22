@@ -22,6 +22,10 @@ class GraphExecutor:
         self.last_transition_time = time.time()
         self.ocr_reader = ocr_reader # Persistent reader if provided
         
+        # Reset usage counts
+        for e in self.graph.edges:
+            e.current_triggers = 0
+            
         # Action context state
         self.last_match_loc = None
         self.last_match_size = None
@@ -89,8 +93,13 @@ class GraphExecutor:
                 transition_happened = False
 
                 for edge in edges:
+                    # Check max triggers
+                    if edge.max_triggers != -1 and edge.current_triggers >= edge.max_triggers:
+                        continue
+                        
                     if check_trigger(edge.trigger, context, self):
-                        print(f"[{self.current_vertex.name}] Triggered Edge to -> {edge.target_id}")
+                        edge.current_triggers += 1
+                        print(f"[{self.current_vertex.name}] Triggered Edge to -> {edge.target_id} (Count: {edge.current_triggers})")
                         
                         # Execute Action
                         if edge.action:

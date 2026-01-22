@@ -128,6 +128,9 @@ class CanvasMixin:
         if self.selected_item == ("edge", edge.id):
              color = THEME["accent_cyan"]
              width = 3 * self.scale
+        elif edge.max_triggers != -1 and edge.current_triggers >= edge.max_triggers:
+             color = "#FF4444" # Red for disabled
+             width = 2 * self.scale
         
         mid_x, mid_y = (sx1+sx2)/2, (sy1+sy2)/2
 

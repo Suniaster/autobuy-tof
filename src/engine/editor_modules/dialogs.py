@@ -201,6 +201,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         
         self.conf_var = tk.StringVar(value="0.8")
         self.prio_var = tk.StringVar(value="0")
+        self.max_triggers_var = tk.StringVar(value="-1")
         self.wait_before_var = tk.StringVar(value="0.0")
         self.wait_after_var = tk.StringVar(value="0.0")
 
@@ -233,6 +234,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                 self.color_tol_var.set(str(p.get("tolerance", 10)))
                 
             self.prio_var.set(str(self.edge.priority))
+            self.max_triggers_var.set(str(self.edge.max_triggers))
             
             if self.edge.action:
                 self.action_var.set(self.edge.action.type)
@@ -419,10 +421,15 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         
         r2 = ctk.CTkFrame(sf, fg_color="transparent")
         r2.pack(fill=tk.X, pady=5)
-        ctk.CTkLabel(r2, text="Wait Before (s):").pack(side=tk.LEFT)
-        ctk.CTkEntry(r2, textvariable=self.wait_before_var, width=60).pack(side=tk.LEFT, padx=5)
-        ctk.CTkLabel(r2, text="Wait After (s):").pack(side=tk.LEFT, padx=(10,0))
-        ctk.CTkEntry(r2, textvariable=self.wait_after_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r2, text="Max Triggers (-1 = ∞):").pack(side=tk.LEFT)
+        ctk.CTkEntry(r2, textvariable=self.max_triggers_var, width=60).pack(side=tk.LEFT, padx=5)
+        
+        r3 = ctk.CTkFrame(sf, fg_color="transparent")
+        r3.pack(fill=tk.X, pady=5)
+        ctk.CTkLabel(r3, text="Wait Before (s):").pack(side=tk.LEFT)
+        ctk.CTkEntry(r3, textvariable=self.wait_before_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r3, text="Wait After (s):").pack(side=tk.LEFT, padx=(10,0))
+        ctk.CTkEntry(r3, textvariable=self.wait_after_var, width=60).pack(side=tk.LEFT, padx=5)
         
         ctk.CTkButton(self, text="Save Changes", command=self.save, fg_color="#4CAF50", hover_color="#45a049", font=("Arial", 14, "bold")).pack(pady=20, fill=tk.X, padx=20, ipady=5)
         self.bind("<Control-v>", lambda e: self.paste_image())
@@ -633,13 +640,15 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                  action = Action(act_type, a_params)
              
              prio = int(self.prio_var.get())
+             max_triggers = int(self.max_triggers_var.get())
              
              if self.edge:
                  self.edge.trigger = trigger
                  self.edge.action = action
                  self.edge.priority = prio
+                 self.edge.max_triggers = max_triggers
              else:
-                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points)
+                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points, max_triggers=max_triggers)
                  self.parent.graph.add_edge(new_edge)
                  
              self.destroy()
@@ -838,13 +847,15 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                  action = Action(act_type, a_params)
              
              prio = int(self.prio_var.get())
+             max_triggers = int(self.max_triggers_var.get())
              
              if self.edge:
                  self.edge.trigger = trigger
                  self.edge.action = action
                  self.edge.priority = prio
+                 self.edge.max_triggers = max_triggers
              else:
-                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points)
+                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points, max_triggers=max_triggers)
                  self.parent.graph.add_edge(new_edge)
                  
              self.destroy()
