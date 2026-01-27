@@ -28,18 +28,33 @@
       "source_id": "refreshing",
       "target_id": "buying",
       "trigger": {
-        "type": "template_match",
+        "type": "color_match",
         "params": {
-          "template": "button_template.png",
-          "threshold": 0.8
+          "x": 1602,
+          "y": 928,
+          "rgb": [
+            36,
+            144,
+            245
+          ],
+          "tolerance": 20,
+          "resolution_width": 1920,
+          "resolution_height": 1080
         }
       },
       "action": {
-        "type": "click_match",
-        "params": {}
+        "type": "click_position",
+        "params": {
+          "x": 1647,
+          "y": 940,
+          "resolution_width": 1920,
+          "resolution_height": 1080
+        }
       },
       "priority": 0,
-      "points": null
+      "points": null,
+      "max_triggers": -1,
+      "activation_threshold": 1
     },
     {
       "id": "auto_refresh",
@@ -52,12 +67,17 @@
       "action": {
         "type": "click_position",
         "params": {
+          "wait_after": 0.35,
           "x": 1580,
-          "y": 163
+          "y": 163,
+          "resolution_width": 1920,
+          "resolution_height": 1080
         }
       },
       "priority": 0,
-      "points": null
+      "points": null,
+      "max_triggers": -1,
+      "activation_threshold": 1
     },
     {
       "id": "confirm_buy",
@@ -75,7 +95,9 @@
         }
       },
       "priority": 0,
-      "points": null
+      "points": null,
+      "max_triggers": -1,
+      "activation_threshold": 1
     },
     {
       "id": "finish_transaction",
@@ -93,7 +115,10 @@
         }
       },
       "priority": 0,
-      "points": null
+      "points": null,
+      "max_triggers": -1,
+      "activation_threshold": 1
     }
-  ]
+  ],
+  "settings": {}
 }
