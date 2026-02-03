@@ -36,7 +36,7 @@ class Edge:
     """
     A transition between two vertices (states).
     """
-    def __init__(self, source_id: Optional[str], target_id: Optional[str], trigger: Trigger, action: Optional[Action] = None, id: str = None, priority: int = 0, points: List[float] = None, max_triggers: int = -1):
+    def __init__(self, source_id: Optional[str], target_id: Optional[str], trigger: Trigger, action: Optional[Action] = None, id: str = None, priority: int = 0, points: List[float] = None, max_triggers: int = -1, activation_threshold: int = 1):
         self.id = id or str(uuid.uuid4())
         self.source_id = source_id
         self.target_id = target_id
@@ -45,7 +45,7 @@ class Edge:
         self.priority = priority
         self.points = points # [x1, y1, x2, y2] for disconnected ends
         self.max_triggers = max_triggers
-        self.current_triggers = 0
+        self.activation_threshold = activation_threshold
 
     def to_dict(self):
         return {
@@ -56,7 +56,8 @@ class Edge:
             "action": self.action.to_dict() if self.action else None,
             "priority": self.priority,
             "points": self.points,
-            "max_triggers": self.max_triggers
+            "max_triggers": self.max_triggers,
+            "activation_threshold": self.activation_threshold
         }
 
     @staticmethod
@@ -71,7 +72,8 @@ class Edge:
             id=data.get("id"),
             priority=data.get("priority", 0),
             points=data.get("points"),
-            max_triggers=data.get("max_triggers", -1)
+            max_triggers=data.get("max_triggers", -1),
+            activation_threshold=data.get("activation_threshold", 1)
         )
 
 class Vertex:

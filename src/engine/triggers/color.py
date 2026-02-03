@@ -58,7 +58,7 @@ class ColorMatchTrigger(Trigger):
             # print(f"[ColorMatch] Check ({local_x}, {local_y}) | Target: ({tr},{tg},{tb}) | Found: ({r},{g},{b}) | Dist: {dist:.2f} | Tol: {self.tolerance}")
 
             if dist <= self.tolerance:
-                print(f"[ColorMatch] MATCHED! ({local_x}, {local_y})")
+                #print(f"[ColorMatch] MATCHED! ({local_x}, {local_y})")
                 return True
             else:
                 # Optional: print only if reasonably close to avoid spam, or print always for deep debug

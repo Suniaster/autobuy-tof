@@ -125,10 +125,15 @@ class CanvasMixin:
         width = 2 * self.scale
         arrow_shape = (10*self.scale, 12*self.scale, 4*self.scale)
         
+        current_triggers = 0
+        if hasattr(self, 'executor') and self.executor and hasattr(self.executor, 'edge_states'):
+             if edge.id in self.executor.edge_states:
+                 current_triggers = self.executor.edge_states[edge.id].get("current_triggers", 0)
+
         if self.selected_item == ("edge", edge.id):
              color = THEME["accent_cyan"]
              width = 3 * self.scale
-        elif edge.max_triggers != -1 and edge.current_triggers >= edge.max_triggers:
+        elif edge.max_triggers != -1 and current_triggers >= edge.max_triggers:
              color = "#FF4444" # Red for disabled
              width = 2 * self.scale
         

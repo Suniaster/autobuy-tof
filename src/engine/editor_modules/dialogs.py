@@ -202,6 +202,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         self.conf_var = tk.StringVar(value="0.8")
         self.prio_var = tk.StringVar(value="0")
         self.max_triggers_var = tk.StringVar(value="-1")
+        self.activation_threshold_var = tk.StringVar(value="1")
         self.wait_before_var = tk.StringVar(value="0.0")
         self.wait_after_var = tk.StringVar(value="0.0")
 
@@ -235,6 +236,7 @@ class EdgeEditorDialog(ctk.CTkToplevel):
                 
             self.prio_var.set(str(self.edge.priority))
             self.max_triggers_var.set(str(self.edge.max_triggers))
+            self.activation_threshold_var.set(str(getattr(self.edge, 'activation_threshold', 1)))
             
             if self.edge.action:
                 self.action_var.set(self.edge.action.type)
@@ -419,17 +421,21 @@ class EdgeEditorDialog(ctk.CTkToplevel):
         ctk.CTkLabel(r1, text="Priority:").pack(side=tk.LEFT, padx=(20,0))
         ctk.CTkEntry(r1, textvariable=self.prio_var, width=60).pack(side=tk.LEFT, padx=5)
         
-        r2 = ctk.CTkFrame(sf, fg_color="transparent")
-        r2.pack(fill=tk.X, pady=5)
-        ctk.CTkLabel(r2, text="Max Triggers (-1 = ∞):").pack(side=tk.LEFT)
-        ctk.CTkEntry(r2, textvariable=self.max_triggers_var, width=60).pack(side=tk.LEFT, padx=5)
+
         
         r3 = ctk.CTkFrame(sf, fg_color="transparent")
         r3.pack(fill=tk.X, pady=5)
-        ctk.CTkLabel(r3, text="Wait Before (s):").pack(side=tk.LEFT)
-        ctk.CTkEntry(r3, textvariable=self.wait_before_var, width=60).pack(side=tk.LEFT, padx=5)
-        ctk.CTkLabel(r3, text="Wait After (s):").pack(side=tk.LEFT, padx=(10,0))
-        ctk.CTkEntry(r3, textvariable=self.wait_after_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r3, text="Max Triggers (-1 = ∞):").pack(side=tk.LEFT)
+        ctk.CTkEntry(r3, textvariable=self.max_triggers_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r3, text="Req. Matches:").pack(side=tk.LEFT, padx=(10,0))
+        ctk.CTkEntry(r3, textvariable=self.activation_threshold_var, width=60).pack(side=tk.LEFT, padx=5)
+        
+        r4 = ctk.CTkFrame(sf, fg_color="transparent")
+        r4.pack(fill=tk.X, pady=5)
+        ctk.CTkLabel(r4, text="Wait Before (s):").pack(side=tk.LEFT)
+        ctk.CTkEntry(r4, textvariable=self.wait_before_var, width=60).pack(side=tk.LEFT, padx=5)
+        ctk.CTkLabel(r4, text="Wait After (s):").pack(side=tk.LEFT, padx=(10,0))
+        ctk.CTkEntry(r4, textvariable=self.wait_after_var, width=60).pack(side=tk.LEFT, padx=5)
         
         ctk.CTkButton(self, text="Save Changes", command=self.save, fg_color="#4CAF50", hover_color="#45a049", font=("Arial", 14, "bold")).pack(pady=20, fill=tk.X, padx=20, ipady=5)
         self.bind("<Control-v>", lambda e: self.paste_image())
@@ -608,20 +614,24 @@ class EdgeEditorDialog(ctk.CTkToplevel):
              trigger = Trigger(trig_type, t_params)
              
              act_type = self.action_var.get()
+             
+             # Pre-parse Waits (Handle commas and errors)
+             wb_str = self.wait_before_var.get().replace(',', '.').strip()
+             wb = float(wb_str) if wb_str else 0.0
+             
+             wa_str = self.wait_after_var.get().replace(',', '.').strip()
+             wa = float(wa_str) if wa_str else 0.0
+             
              action = None
-             if act_type != "None":
+             if act_type != "None" or wb > 0 or wa > 0:
                  a_params = {}
-                 mods = [k for k, v in self.mod_vars.items() if v.get()]
-                 if mods: a_params["modifiers"] = ", ".join(mods)
+                 if wb > 0: a_params["wait_before"] = wb
+                 if wa > 0: a_params["wait_after"] = wa
                  
-                 # Add waits
-                 try:
-                     wb = float(self.wait_before_var.get())
-                     if wb > 0: a_params["wait_before"] = wb
-                     wa = float(self.wait_after_var.get())
-                     if wa > 0: a_params["wait_after"] = wa
-                 except ValueError:
-                     pass # Ignore invalid floats, treat as 0
+                 # Only add modifiers if we have an action type that might use them
+                 mods = [k for k, v in self.mod_vars.items() if v.get()]
+                 if mods and act_type != "None": 
+                    a_params["modifiers"] = ", ".join(mods)
                  
                  if act_type == "press_key":
                      a_params["key"] = self.key_var.get()
@@ -641,14 +651,16 @@ class EdgeEditorDialog(ctk.CTkToplevel):
              
              prio = int(self.prio_var.get())
              max_triggers = int(self.max_triggers_var.get())
+             activation_threshold = int(self.activation_threshold_var.get())
              
              if self.edge:
                  self.edge.trigger = trigger
                  self.edge.action = action
                  self.edge.priority = prio
                  self.edge.max_triggers = max_triggers
+                 self.edge.activation_threshold = activation_threshold
              else:
-                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points, max_triggers=max_triggers)
+                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points, max_triggers=max_triggers, activation_threshold=activation_threshold)
                  self.parent.graph.add_edge(new_edge)
                  
              self.destroy()
@@ -771,95 +783,4 @@ class EdgeEditorDialog(ctk.CTkToplevel):
             
         ColorPointSelector(self.parent, on_pick)
 
-    def save(self):
-        # Validation and Save
-        try:
-             # Capture Window Resolution
-             res_w, res_h = 1920, 1080
-             target_hwnd = self.parent.game_hwnd
-             if target_hwnd and win32gui.IsWindow(target_hwnd):
-                 rect = win32gui.GetClientRect(target_hwnd)
-                 res_w = rect[2] - rect[0]
-                 res_h = rect[3] - rect[1]
-             
-             trig_type = self.trig_type_var.get()
-             t_params = {}
-             if trig_type == "template_match":
-                 t_params = {
-                     "template": self.tmpl_var.get(),
-                     "threshold": float(self.conf_var.get()),
-                     "invert": self.invert_var.get()
-                 }
-             elif trig_type == "ocr_watch":
-                 r = [int(x) for x in self.region_var.get().split(",")]
-                 t_params = {
-                     "region": r,
-                     "condition": self.cond_var.get(),
-                     "value": float(self.val_var.get()),
-                     "interval": float(self.ocr_interval_var.get()),
-                     "resolution_width": res_w,
-                     "resolution_height": res_h
-                 }
-             elif trig_type == "color_match":
-                 rgb_str = self.color_rgb_var.get()
-                 rgb = [int(x.strip()) for x in rgb_str.split(",")]
-                 t_params = {
-                     "x": int(self.color_pos_x_var.get()),
-                     "y": int(self.color_pos_y_var.get()),
-                     "rgb": rgb,
-                     "tolerance": int(self.color_tol_var.get()),
-                     "resolution_width": res_w,
-                     "resolution_height": res_h
-                 }
-                 
-             trigger = Trigger(trig_type, t_params)
-             
-             act_type = self.action_var.get()
-             action = None
-             if act_type != "None":
-                 a_params = {}
-                 mods = [k for k, v in self.mod_vars.items() if v.get()]
-                 if mods: a_params["modifiers"] = ", ".join(mods)
-                 
-                 # Add waits
-                 try:
-                     wb = float(self.wait_before_var.get())
-                     if wb > 0: a_params["wait_before"] = wb
-                     wa = float(self.wait_after_var.get())
-                     if wa > 0: a_params["wait_after"] = wa
-                 except ValueError:
-                     pass # Ignore invalid floats, treat as 0
-                 
-                 if act_type == "press_key":
-                     a_params["key"] = self.key_var.get()
-                     a_params["duration"] = float(self.dur_var.get())
-                 elif act_type == "click_position":
-                     a_params["x"] = int(self.x_var.get())
-                     a_params["y"] = int(self.y_var.get())
-                     a_params["resolution_width"] = res_w
-                     a_params["resolution_height"] = res_h
-                 elif act_type == "wait":
-                     a_params["duration"] = float(self.wait_dur_var.get())
-                 elif act_type == "buzzer":
-                     a_params["frequency"] = int(self.buzzer_freq_var.get())
-                     a_params["duration"] = float(self.buzzer_dur_var.get())
-                     
-                 action = Action(act_type, a_params)
-             
-             prio = int(self.prio_var.get())
-             max_triggers = int(self.max_triggers_var.get())
-             
-             if self.edge:
-                 self.edge.trigger = trigger
-                 self.edge.action = action
-                 self.edge.priority = prio
-                 self.edge.max_triggers = max_triggers
-             else:
-                 new_edge = Edge(self.source_id, self.target_id, trigger, action, priority=prio, points=self.points, max_triggers=max_triggers)
-                 self.parent.graph.add_edge(new_edge)
-                 
-             self.destroy()
-             self.parent.refresh_canvas()
-             
-        except Exception as e:
-            messagebox.showerror("Error", f"Invalid parameters: {e}")
+

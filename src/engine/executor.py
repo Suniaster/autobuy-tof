@@ -22,9 +22,8 @@ class GraphExecutor:
         self.last_transition_time = time.time()
         self.ocr_reader = ocr_reader # Persistent reader if provided
         
-        # Reset usage counts
-        for e in self.graph.edges:
-            e.current_triggers = 0
+        # Runtime state for edges: { edge_id: {"match_count": 0, "current_triggers": 0} }
+        self.edge_states = {} 
             
         # Action context state
         self.last_match_loc = None
@@ -52,6 +51,7 @@ class GraphExecutor:
     def run(self):
         self.running = True
         print(f"Starting Graph Executor. Start Node: {self.current_vertex.name if self.current_vertex else 'None'}")
+        print("DEBUG: Executor loaded with Modulo Activation Logic (v2).")
         
         if not self.current_vertex:
             print("Error: No start vertex found!")
@@ -93,13 +93,29 @@ class GraphExecutor:
                 transition_happened = False
 
                 for edge in edges:
-                    # Check max triggers
-                    if edge.max_triggers != -1 and edge.current_triggers >= edge.max_triggers:
+                    # Initialize state for this edge if not present
+                    if edge.id not in self.edge_states:
+                        self.edge_states[edge.id] = {"match_count": 0, "current_triggers": 0}
+                    
+                    e_state = self.edge_states[edge.id]
+
+                    # Check max triggers (Execution Limit)
+                    if edge.max_triggers != -1 and e_state["current_triggers"] >= edge.max_triggers:
                         continue
                         
                     if check_trigger(edge.trigger, context, self):
-                        edge.current_triggers += 1
-                        print(f"[{self.current_vertex.name}] Triggered Edge to -> {edge.target_id} (Count: {edge.current_triggers})")
+                        e_state["match_count"] += 1
+                        # Debug Print for increments
+                        # print(f"   -> Edge {edge.id[:4]}.. Match! Count: {e_state['match_count']} (Req: {max(edge.activation_threshold, 1)})")
+                        
+                        # Check Activation Threshold (Modulo Logic)
+                        threshold = max(edge.activation_threshold, 1) # Default 1 if <= 0
+                        if (e_state["match_count"] % threshold) != 0:
+                            continue
+                            
+                        # Threshold Met (Modulo 0)
+                        e_state["current_triggers"] += 1
+                        # print(f"[{self.current_vertex.name}] Triggered Edge to -> {edge.target_id} (Matches: {e_state['match_count']}, Executions: {e_state['current_triggers']})")
                         
                         # Execute Action
                         if edge.action:
@@ -127,10 +143,6 @@ class GraphExecutor:
                             
                             if self.on_state_change:
                                 self.on_state_change(self.current_vertex.id)
-                                
-                            # time.sleep(0.2) # Removed for immediate response
-                            # Small yield to prevent complete CPU hog if immediate loop?
-                            # No, allow fast execution. 
                             break
                 
                 if not transition_happened:
